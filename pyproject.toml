@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragforge"
+version = "0.1.0"
+description = "One workshop for building, evaluating, and optimizing RAG — usable from any language."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+keywords = ["rag", "llm", "embeddings", "retrieval", "chunking", "quantization", "evaluation", "api"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core install is intentionally dependency-free so `pip install ragforge` is instant.
+dependencies = []
+
+[project.optional-dependencies]
+# API server (FastAPI + Uvicorn)
+api = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "pydantic>=2.0.0",
+]
+# PDF parsing
+pdf = ["pypdf>=4.0"]
+# Pipeline (embedding + vector store) — future heavy deps
+pipeline = [
+    "sentence-transformers>=2.2.0",
+]
+# Evaluation
+eval = []
+# Quantization
+quantization = []
+# Migration
+migration = []
+# All optional dependencies
+all = [
+    "ragforge[api]",
+    "ragforge[pdf]",
+]
+# Development / testing
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "httpx>=0.24.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+ragforge = "ragforge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ragforge/ragforge"
+Documentation = "https://ragforge.github.io/ragforge"
+Repository = "https://github.com/ragforge/ragforge"
+Issues = "https://github.com/ragforge/ragforge/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ragforge*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

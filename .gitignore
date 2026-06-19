@@ -1,0 +1,21 @@
+# Python
+.venv/
+venv/
+**__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Node / Docusaurus
+node_modules/
+website/node_modules/
+website/build/
+website/.docusaurus/
+.docusaurus/
+
+# OS / misc
+.DS_Store
+*.log
+test_output.txt
