@@ -46,18 +46,11 @@ const config: Config = {
   themeConfig: {
     colorMode: {
       defaultMode: 'dark',
-      disableSwitch: false,
-      respectPrefersColorScheme: true,
+      disableSwitch: true,
+      respectPrefersColorScheme: false,
     },
     navbar: {
-      title: 'RAGForge',
-      logo: {
-        alt: 'RAGForge',
-        src: 'img/logo-mark-dark.svg',
-        srcDark: 'img/logo-mark.svg',
-        width: 28,
-        height: 28,
-      },
+      title: '⚒ RAGForge',
       items: [
         {
           type: 'docSidebar',
