@@ -55,6 +55,11 @@ eval = []
 quantization = []
 # Migration
 migration = []
+# UI dashboard (web interface served by ragforge ui)
+ui = [
+    "ragforge[api]",
+    "aiofiles>=23.0",
+]
 # All optional dependencies
 all = [
     "ragforge[api]",
@@ -62,6 +67,7 @@ all = [
     "ragforge[pipeline]",
     "ragforge[openai]",
     "ragforge[anthropic]",
+    "ragforge[ui]",
 ]
 # Development / testing
 dev = [

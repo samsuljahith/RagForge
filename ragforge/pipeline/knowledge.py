@@ -196,6 +196,35 @@ class KnowledgeBase:
             rerank=rerank,
         )
 
+    def query_traced(
+        self,
+        question: str,
+        top_k: int = 5,
+        mode: RetrievalMode = "hybrid",
+        rerank: bool = False,
+    ) -> tuple[list[tuple[Chunk, float]], str]:
+        """
+        Query with tracing — same as query() but records a structured trace.
+
+        Returns:
+            Tuple of (results, run_id) where run_id links to the stored trace.
+        """
+        from ragforge.tracing import Tracer
+
+        tracer = Tracer()
+        with tracer.trace(query=question, knowledge=self.name, mode=mode, top_k=top_k) as t:
+            t.step("retrieval", mode=mode, top_k=top_k, rerank=rerank)
+            results = self._retriever.search(
+                query=question, top_k=top_k, mode=mode, rerank=rerank,
+            )
+            chunks_data = [
+                {"id": c.id, "text": c.text[:200], "score": round(s, 4), "section": c.metadata.get("section", "")}
+                for c, s in results
+            ]
+            t.step("retrieval_done", num_chunks=len(results), chunks=chunks_data)
+
+        return results, t.run_id
+
     # ------------------------------------------------------------------
     # Answer (retrieve + generate grounded answer)
     # ------------------------------------------------------------------
@@ -265,6 +294,65 @@ class KnowledgeBase:
             "question": question,
             "mode": mode,
             "llm_name": provider.name,
+        }
+
+    def answer_traced(
+        self,
+        question: str,
+        top_k: int = 5,
+        mode: RetrievalMode = "hybrid",
+        rerank: bool = False,
+        llm: str = "ollama",
+        llm_opts: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        answer() with full tracing — records retrieval, prompt, and response steps.
+
+        Returns the same dict as answer() but with an added 'run_id' field
+        linking to the stored trace for observability.
+        """
+        from ragforge.pipeline.generation import get_llm, build_grounded_prompt
+        from ragforge.tracing import Tracer
+
+        llm_opts = llm_opts or {}
+        tracer = Tracer()
+
+        with tracer.trace(query=question, knowledge=self.name, mode=mode, top_k=top_k, llm=llm) as t:
+            # Step 1: Retrieval
+            t.step("retrieval", mode=mode, top_k=top_k, rerank=rerank)
+            results = self.query(question=question, top_k=top_k, mode=mode, rerank=rerank)
+
+            sources = [
+                {
+                    "id": chunk.id,
+                    "text": chunk.text,
+                    "doc_id": chunk.doc_id,
+                    "index": chunk.index,
+                    "metadata": chunk.metadata,
+                    "score": round(score, 4),
+                }
+                for chunk, score in results
+            ]
+            t.step("retrieval_done", num_chunks=len(results),
+                   chunks=[{"id": s["id"], "text": s["text"][:200], "score": s["score"]} for s in sources])
+
+            # Step 2: Build prompt
+            prompt = build_grounded_prompt(question, sources)
+            t.step("prompt_built", char_count=len(prompt), prompt_preview=prompt[:500])
+
+            # Step 3: LLM generation
+            t.step("generation", llm=llm, model=llm_opts.get("model", "default"))
+            provider = get_llm(llm, **llm_opts)
+            answer_text = provider.generate(prompt)
+            t.step("generation_done", char_count=len(answer_text), answer_preview=answer_text[:500])
+
+        return {
+            "answer": answer_text,
+            "sources": sources,
+            "question": question,
+            "mode": mode,
+            "llm_name": provider.name,
+            "run_id": t.run_id,
         }
 
     # ------------------------------------------------------------------

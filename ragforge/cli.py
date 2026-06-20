@@ -228,6 +228,81 @@ def _cmd_eval_bootstrap(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ui(args: argparse.Namespace) -> int:
+    """Launch the local web dashboard (tracing, evaluation, chat)."""
+    try:
+        import uvicorn
+    except ImportError:
+        print(
+            "Error: UI dependencies not installed.\n"
+            "Install with:  pip install ragforge[ui]",
+            file=sys.stderr,
+        )
+        return 1
+
+    from pathlib import Path
+
+    # Check if static files exist
+    static_dir = Path(__file__).parent / "ui_static"
+    if not static_dir.exists() or not (static_dir / "index.html").exists():
+        print(
+            "UI static files not found. Building frontend...",
+            file=sys.stderr,
+        )
+        ui_src = Path(__file__).parent.parent / "ui"
+        if ui_src.exists() and (ui_src / "package.json").exists():
+            import subprocess
+            try:
+                subprocess.run(["npm", "install"], cwd=str(ui_src), check=True, capture_output=True)
+                subprocess.run(["npm", "run", "build"], cwd=str(ui_src), check=True, capture_output=True)
+                print("Frontend built successfully.", file=sys.stderr)
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                print(f"Failed to build frontend: {e}", file=sys.stderr)
+                print("Run 'cd ui && npm install && npm run build' manually.", file=sys.stderr)
+                return 1
+        else:
+            print(
+                "Error: ui/ source directory not found.\n"
+                "The UI must be pre-built to ragforge/ui_static/.",
+                file=sys.stderr,
+            )
+            return 1
+
+    # Mount static files in the FastAPI app
+    from ragforge.api.app import app
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    @app.get("/ui/{path:path}")
+    async def serve_ui(path: str):
+        """Serve the SPA — all non-API routes go to index.html."""
+        file_path = static_dir / path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(static_dir / "index.html"))
+
+    @app.get("/ui")
+    async def serve_ui_root():
+        return FileResponse(str(static_dir / "index.html"))
+
+    # Mount assets
+    if (static_dir / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="ui-assets")
+
+    url = f"http://{args.host}:{args.port}/ui"
+    print(f"RAGForge UI v{__version__}")
+    print(f"Dashboard: {url}")
+    print(f"API docs:  http://{args.host}:{args.port}/docs")
+
+    if not args.no_browser:
+        import webbrowser
+        import threading
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     """Start the HTTP/JSON API server."""
     try:
@@ -370,6 +445,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--reload", action="store_true", help="auto-reload on code changes (dev mode)")
     sp.set_defaults(func=_cmd_serve)
 
+    # --- ui ---
+    sp = sub.add_parser("ui", help="launch the local web dashboard (traces, eval, chat)")
+    sp.add_argument("--port", type=int, default=8000, help="port (default: 8000)")
+    sp.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
+    sp.add_argument("--no-browser", action="store_true", help="don't auto-open the browser")
+    sp.set_defaults(func=_cmd_ui)
+
     return p
 
 
@@ -378,7 +460,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return args.func(args)
-    except (FileNotFoundError, ValueError, ImportError) as exc:
+    except (FileNotFoundError, ValueError, ImportError, ConnectionError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
