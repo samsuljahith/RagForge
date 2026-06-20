@@ -33,9 +33,13 @@ pipeline = [
     "sentence-transformers>=2.2.0",
     "numpy>=1.21.0",
 ]
-# OpenAI embeddings
+# OpenAI (embeddings + LLM generation)
 openai = [
     "openai>=1.0.0",
+]
+# Anthropic (LLM generation)
+anthropic = [
+    "anthropic>=0.30.0",
 ]
 # API server (FastAPI + Uvicorn)
 api = [
@@ -57,6 +61,7 @@ all = [
     "ragforge[pdf]",
     "ragforge[pipeline]",
     "ragforge[openai]",
+    "ragforge[anthropic]",
 ]
 # Development / testing
 dev = [

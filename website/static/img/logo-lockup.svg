@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40" fill="none">
+  <!-- RAGForge Logo Lockup: Bracket+Hammer mark + wordmark -->
+  <!-- Left bracket -->
+  <path d="M5 4 L1 4 L1 36 L5 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" fill="none"/>
+  <!-- Hammer chevron -->
+  <path d="M12 6 L18 16 L24 6" stroke="#E8520E" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter" fill="none"/>
+  <!-- Impact line -->
+  <line x1="12" y1="21" x2="24" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="square"/>
+  <!-- Forged blocks -->
+  <rect x="13" y="25" width="3.5" height="3.5" fill="currentColor"/>
+  <rect x="19" y="25" width="3.5" height="3.5" fill="currentColor"/>
+  <!-- Right bracket -->
+  <path d="M31 4 L35 4 L35 36 L31 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" fill="none"/>
+  <!-- Wordmark -->
+  <text x="44" y="28" font-family="'JetBrains Mono','SF Mono','Fira Code',monospace" font-size="18" font-weight="700" fill="currentColor" letter-spacing="-0.5">RAGForge</text>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
+  <!-- RAGForge Mark — for light backgrounds (dark strokes) -->
+  <path d="M6 4 L2 4 L2 36 L6 36" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="square" fill="none"/>
+  <path d="M13 7 L20 18 L27 7" stroke="#E8520E" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter" fill="none"/>
+  <line x1="13" y1="23" x2="27" y2="23" stroke="#0A0A0A" stroke-width="2" stroke-linecap="square"/>
+  <rect x="14" y="27" width="4" height="4" fill="#0A0A0A"/>
+  <rect x="22" y="27" width="4" height="4" fill="#0A0A0A"/>
+  <path d="M34 4 L38 4 L38 36 L34 36" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="square" fill="none"/>
+</svg>

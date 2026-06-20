@@ -1,4 +1,11 @@
-import clsx from 'clsx';
+/**
+ * RAGForge — Colorful Neubrutalism Landing Page
+ *
+ * Bold saturated colors, thick black borders, chunky shapes, hard shadows.
+ * Purple background, lime/yellow/coral cards, retro-playful energy.
+ */
+
+import React from 'react';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
@@ -6,92 +13,114 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import CodeBlock from '@theme/CodeBlock';
 
-import styles from './index.module.css';
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 
-function HeroSection() {
-  const {siteConfig} = useDocusaurusContext();
+function Hero() {
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
-      <div className="container">
-        <h1 className="hero__title">{siteConfig.title}</h1>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/getting-started/quickstart">
-            Get Started
-          </Link>
-          <Link
-            className="button button--outline button--lg"
-            href="https://github.com/ragforge/ragforge"
-            style={{marginLeft: '1rem'}}>
-            GitHub
-          </Link>
-        </div>
-        <div className={styles.installCommand}>
-          <code>pip install ragforge</code>
+    <section className="nb-hero">
+      {/* Floating decorations */}
+      <div className="nb-deco nb-deco--1" style={{'--r': '12deg'} as React.CSSProperties} />
+      <div className="nb-deco nb-deco--2" />
+      <div className="nb-deco nb-deco--3" style={{'--r': '-3deg'} as React.CSSProperties} />
+      <div className="nb-deco nb-deco--4" style={{'--r': '-8deg'} as React.CSSProperties} />
+
+      <div className="nb-hero__inner">
+        <div className="nb-hero__card nb-animate">
+          <img
+            src="/RagForge/img/logo-lockup-dark.svg"
+            alt="RAGForge"
+            className="nb-hero__logo"
+            width="220"
+            height="44"
+          />
+
+          <h1 className="nb-hero__title nb-animate nb-animate--d1">
+            Build RAG<br />That Works.
+          </h1>
+
+          <p className="nb-hero__tagline nb-animate nb-animate--d2">
+            One workshop for building, evaluating, and optimizing RAG — usable
+            from any language. Parse, chunk, embed, retrieve. All over HTTP/JSON.
+          </p>
+
+          <div
+            className="nb-install nb-animate nb-animate--d3"
+            onClick={() => navigator.clipboard?.writeText('pip install ragforge')}
+            title="Click to copy"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && navigator.clipboard?.writeText('pip install ragforge')}
+          >
+            <span className="nb-install__dollar">$</span>
+            <code>pip install ragforge</code>
+          </div>
+
+          <div className="nb-btn-group nb-animate nb-animate--d4">
+            <Link className="nb-btn nb-btn--primary" to="/docs/getting-started/quickstart">
+              Get Started →
+            </Link>
+            <Link className="nb-btn nb-btn--secondary" href="https://github.com/samsuljahith/RagForge">
+              ★ GitHub
+            </Link>
+          </div>
         </div>
       </div>
-    </header>
+    </section>
   );
 }
 
-type FeatureItem = {
-  title: string;
-  description: string;
-  available: boolean;
-};
+// ─── Features ─────────────────────────────────────────────────────────────────
 
-const features: FeatureItem[] = [
+const features = [
   {
-    title: 'Parsing',
-    description: 'Turn any file (txt, md, html, pdf) into clean Documents. Auto-detects format by extension.',
+    name: 'Parsing',
+    desc: 'txt, md, html, pdf → Document. Auto-detects format. Zero config.',
     available: true,
   },
   {
-    title: 'Chunking',
-    description: 'Structure-aware splitting that keeps tables and code blocks intact. Tags each chunk with its section.',
+    name: 'Chunking',
+    desc: 'Structure-aware: keeps tables and code blocks intact. Tags sections.',
     available: true,
   },
   {
-    title: 'Pipeline',
-    description: 'Embed, store, and retrieve with hybrid search (dense + BM25) and reranking.',
+    name: 'Pipeline',
+    desc: 'Embed → store → dense + BM25 hybrid search (RRF) → reranking. Pluggable.',
     available: true,
   },
   {
-    title: 'Evaluation',
-    description: 'Measure precision, recall, and faithfulness against a golden dataset. Stop flying blind.',
-    available: true,
+    name: 'Evaluation',
+    desc: 'Precision, recall, faithfulness vs golden datasets.',
+    available: false,
   },
   {
-    title: 'Quantization',
-    description: 'Quantize models and compare cost vs quality tradeoff on your own data.',
-    available: true,
+    name: 'Quantization',
+    desc: 'Compress embeddings. Measure cost vs quality on your data.',
+    available: false,
   },
   {
-    title: 'Migration',
-    description: 'Safely move between embedding models with shadow indexing and quality validation.',
-    available: true,
+    name: 'Migration',
+    desc: 'Swap embedding models. Shadow index + quality validation.',
+    available: false,
   },
 ];
 
-function FeatureCards() {
+function Features() {
   return (
-    <section className={styles.features}>
+    <section className="nb-section nb-section--white">
       <div className="container">
-        <h2 style={{textAlign: 'center', marginBottom: '2rem'}}>Capabilities</h2>
-        <div className="row">
-          {features.map((feature, idx) => (
-            <div key={idx} className={clsx('col col--4')} style={{marginBottom: '1.5rem'}}>
-              <div className="feature-card">
-                <h3>
-                  {feature.title}{' '}
-                  <span className={feature.available ? 'badge--available' : 'badge--coming-soon'}>
-                    {feature.available ? 'Available' : 'Coming soon'}
-                  </span>
-                </h3>
-                <p>{feature.description}</p>
-              </div>
+        <span className="nb-section__label">Capabilities</span>
+        <h2 className="nb-section__title">What's Built</h2>
+        <p className="nb-section__subtitle">
+          Independent modules, shared core. Each one registers itself — add features by adding one file.
+        </p>
+        <div className="nb-features">
+          {features.map((f, i) => (
+            <div key={i} className="nb-feature">
+              <div className="nb-feature__name">{f.name}</div>
+              <div className="nb-feature__desc">{f.desc}</div>
+              <span className={`nb-badge ${f.available ? 'nb-badge--available' : 'nb-badge--soon'}`}>
+                {f.available ? '✓ Available' : '◌ Coming soon'}
+              </span>
             </div>
           ))}
         </div>
@@ -100,91 +129,125 @@ function FeatureCards() {
   );
 }
 
-function QuickExample() {
-  const parseChunkExample = `import ragforge as rf
+// ─── Code Example ─────────────────────────────────────────────────────────────
 
-# Parse any file into a clean Document
-doc = rf.parse_file("knowledge-base/refund-policy.md")
+function CodeExample() {
+  const code = `from ragforge.pipeline import KnowledgeBase
 
-# Structure-aware chunking: keeps tables and code intact
-chunks = rf.chunk_document(doc, strategy="structure")
+# Parse → structure-aware chunk → embed → store
+kb = KnowledgeBase.build(
+    name="my-kb",
+    sources=["./docs/"],
+    chunk_strategy="structure",  # keeps tables + code intact
+)
 
-for chunk in chunks:
-    print(f"[{chunk.metadata.get('section')}] ~{chunk.token_count} tokens")`;
+# Hybrid search: dense + BM25 fused via RRF
+results = kb.query("How do refunds work?", mode="hybrid", top_k=5)
+
+for chunk, score in results:
+    print(f"  [{score:.3f}] {chunk.text[:80]}...")`;
 
   return (
-    <section className={styles.example}>
+    <section className="nb-section nb-section--yellow">
       <div className="container">
-        <h2 style={{textAlign: 'center'}}>Parse + Chunk in 4 Lines</h2>
-        <CodeBlock language="python">{parseChunkExample}</CodeBlock>
+        <span className="nb-section__label">Example</span>
+        <h2 className="nb-section__title">End-to-End in 6 Lines</h2>
+        <p className="nb-section__subtitle">
+          Parse, chunk, embed, and retrieve. Structure-aware chunking keeps your tables intact.
+        </p>
+        <div className="nb-code-card">
+          <div className="nb-code-card__header">
+            <span className="nb-code-card__dot nb-code-card__dot--red" />
+            <span className="nb-code-card__dot nb-code-card__dot--yellow" />
+            <span className="nb-code-card__dot nb-code-card__dot--green" />
+          </div>
+          <CodeBlock language="python">{code}</CodeBlock>
+        </div>
       </div>
     </section>
   );
 }
 
-function AnyLanguageSection() {
-  const pythonExample = `import requests
+// ─── Any Language ─────────────────────────────────────────────────────────────
+
+function AnyLanguage() {
+  const py = `import requests
 
 resp = requests.post("http://localhost:8000/query", json={
     "knowledge": "my-kb",
     "question": "How do refunds work?",
-    "top_k": 3,
+    "mode": "hybrid",
+    "top_k": 5,
 })
-chunks = resp.json()["chunks"]`;
+for chunk in resp.json()["chunks"]:
+    print(f"  [{chunk['score']:.3f}] {chunk['text'][:80]}")`;
 
-  const jsExample = `const resp = await fetch("http://localhost:8000/query", {
+  const js = `const resp = await fetch("http://localhost:8000/query", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     knowledge: "my-kb",
     question: "How do refunds work?",
-    top_k: 3,
+    mode: "hybrid",
+    top_k: 5,
   }),
 });
 const { chunks } = await resp.json();`;
 
-  const curlExample = `curl -X POST http://localhost:8000/query \\
+  const curl = `curl -s -X POST http://localhost:8000/query \\
   -H "Content-Type: application/json" \\
   -d '{
     "knowledge": "my-kb",
     "question": "How do refunds work?",
-    "top_k": 3
-  }'`;
+    "mode": "hybrid",
+    "top_k": 5
+  }' | jq '.chunks[:3]'`;
 
   return (
-    <section className={styles.anyLanguage}>
+    <section className="nb-section nb-section--lime">
       <div className="container">
-        <h2 style={{textAlign: 'center'}}>Works with Any Language</h2>
-        <p style={{textAlign: 'center', marginBottom: '2rem', opacity: 0.8}}>
-          The same HTTP/JSON API — call it from Python, JavaScript, Go, Java, C++, or anything with an HTTP client.
+        <span className="nb-section__label">Any Language</span>
+        <h2 className="nb-section__title">Plain HTTP. Any Client.</h2>
+        <p className="nb-section__subtitle">
+          Python, JavaScript, Go, Rust, curl — anything with an HTTP client works.
+          Interactive docs at <code>/docs</code>.
         </p>
-        <Tabs>
-          <TabItem value="python" label="Python" default>
-            <CodeBlock language="python">{pythonExample}</CodeBlock>
-          </TabItem>
-          <TabItem value="javascript" label="JavaScript">
-            <CodeBlock language="javascript">{jsExample}</CodeBlock>
-          </TabItem>
-          <TabItem value="curl" label="curl">
-            <CodeBlock language="bash">{curlExample}</CodeBlock>
-          </TabItem>
-        </Tabs>
+        <div className="nb-code-card">
+          <div className="nb-code-card__header">
+            <span className="nb-code-card__dot nb-code-card__dot--red" />
+            <span className="nb-code-card__dot nb-code-card__dot--yellow" />
+            <span className="nb-code-card__dot nb-code-card__dot--green" />
+          </div>
+          <Tabs>
+            <TabItem value="python" label="Python" default>
+              <CodeBlock language="python">{py}</CodeBlock>
+            </TabItem>
+            <TabItem value="js" label="JavaScript">
+              <CodeBlock language="javascript">{js}</CodeBlock>
+            </TabItem>
+            <TabItem value="curl" label="curl">
+              <CodeBlock language="bash">{curl}</CodeBlock>
+            </TabItem>
+          </Tabs>
+        </div>
       </div>
     </section>
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function Home(): JSX.Element {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={siteConfig.title}
-      description="One workshop for building, evaluating, and optimizing RAG — usable from any language">
-      <HeroSection />
+      title="RAGForge — Build RAG That Works"
+      description={siteConfig.tagline}>
       <main>
-        <FeatureCards />
-        <QuickExample />
-        <AnyLanguageSection />
+        <Hero />
+        <Features />
+        <CodeExample />
+        <AnyLanguage />
       </main>
     </Layout>
   );

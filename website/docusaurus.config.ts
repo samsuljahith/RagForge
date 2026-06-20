@@ -5,13 +5,13 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'RAGForge',
   tagline: 'One workshop for building, evaluating, and optimizing RAG — usable from any language',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
-  url: 'https://ragforge.github.io',
-  baseUrl: '/ragforge/',
+  url: 'https://samsuljahith.github.io',
+  baseUrl: '/RagForge/',
 
-  organizationName: 'ragforge',
-  projectName: 'ragforge',
+  organizationName: 'samsuljahith',
+  projectName: 'RagForge',
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -33,7 +33,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/ragforge/ragforge/tree/main/website/',
+          editUrl: 'https://github.com/samsuljahith/RagForge/tree/main/website/',
         },
         blog: false,
         theme: {
@@ -51,6 +51,13 @@ const config: Config = {
     },
     navbar: {
       title: 'RAGForge',
+      logo: {
+        alt: 'RAGForge',
+        src: 'img/logo-mark-dark.svg',
+        srcDark: 'img/logo-mark.svg',
+        width: 28,
+        height: 28,
+      },
       items: [
         {
           type: 'docSidebar',
@@ -59,7 +66,12 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/ragforge/ragforge',
+          to: '/docs/reference/http-api',
+          label: 'API',
+          position: 'left',
+        },
+        {
+          href: 'https://github.com/samsuljahith/RagForge',
           label: 'GitHub',
           position: 'right',
         },
@@ -71,24 +83,26 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {label: 'Getting Started', to: '/docs/getting-started/quickstart'},
+            {label: 'Quickstart', to: '/docs/getting-started/quickstart'},
             {label: 'API Reference', to: '/docs/reference/http-api'},
+            {label: 'CLI Reference', to: '/docs/reference/cli'},
           ],
         },
         {
-          title: 'Community',
+          title: 'Links',
           items: [
-            {label: 'GitHub', href: 'https://github.com/ragforge/ragforge'},
-            {label: 'Issues', href: 'https://github.com/ragforge/ragforge/issues'},
+            {label: 'GitHub', href: 'https://github.com/samsuljahith/RagForge'},
+            {label: 'Issues', href: 'https://github.com/samsuljahith/RagForge/issues'},
+            {label: 'PyPI', href: 'https://pypi.org/project/ragforge/'},
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} RAGForge Contributors. Apache-2.0 License.`,
+      copyright: `Apache-2.0 · RAGForge Contributors · ${new Date().getFullYear()}`,
     },
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ['bash', 'python', 'json', 'javascript', 'go', 'java'],
+      additionalLanguages: ['bash', 'python', 'json', 'javascript'],
     },
     mermaid: {
       theme: {light: 'neutral', dark: 'dark'},

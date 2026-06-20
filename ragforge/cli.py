@@ -113,12 +113,19 @@ def _cmd_query(args: argparse.Namespace) -> int:
     """Query a knowledge base."""
     from ragforge.pipeline import query_knowledge_base
 
+    llm_opts = {}
+    if hasattr(args, "model") and args.model:
+        llm_opts["model"] = args.model
+
     result = query_knowledge_base(
         knowledge=args.knowledge,
         question=args.question,
         top_k=args.k,
         mode=args.mode,
         rerank=args.rerank,
+        generate=args.generate,
+        llm=args.llm,
+        llm_opts=llm_opts if llm_opts else None,
     )
 
     if args.json:
@@ -127,7 +134,18 @@ def _cmd_query(args: argparse.Namespace) -> int:
         print(f"Query: {result['question']}")
         print(f"Knowledge base: {result['knowledge']}")
         print(f"Mode: {args.mode}  |  Rerank: {args.rerank}")
-        print(f"Results: {len(result['chunks'])} chunks\n")
+
+        # Print generated answer if present
+        if result.get("answer"):
+            print(f"\n{'─' * 60}")
+            print(f"Answer (via {result.get('llm', 'unknown')}):")
+            print(f"{'─' * 60}")
+            print(result["answer"])
+            print(f"{'─' * 60}")
+            print(f"\nSources ({len(result['chunks'])} chunks):\n")
+        else:
+            print(f"Results: {len(result['chunks'])} chunks\n")
+
         for c in result["chunks"]:
             section = c["metadata"].get("section", "")
             head = f"  [{c['index']}] score={c['score']:.4f}"
@@ -135,6 +153,78 @@ def _cmd_query(args: argparse.Namespace) -> int:
             print(head)
             print(f"      {c['text'][:120]}...")
             print()
+    return 0
+
+
+def _cmd_eval_run(args: argparse.Namespace) -> int:
+    """Run evaluation against a golden dataset."""
+    from ragforge.pipeline import KnowledgeBase
+    from ragforge.evaluation import Evaluator, GoldenDataset
+
+    kb = KnowledgeBase.load(args.knowledge)
+    golden = GoldenDataset.load(args.golden)
+
+    metrics = args.metrics.split(",") if args.metrics else None
+
+    evaluator = Evaluator(kb)
+    report = evaluator.run(
+        golden,
+        metrics=metrics,
+        top_k=args.k,
+        mode=args.mode,
+        rerank=args.rerank,
+        generate=args.generate,
+        llm=args.llm,
+    )
+
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        report.print_table()
+    return 0
+
+
+def _cmd_eval_compare(args: argparse.Namespace) -> int:
+    """A/B compare two KBs on the same golden set."""
+    from ragforge.pipeline import KnowledgeBase
+    from ragforge.evaluation import Evaluator, GoldenDataset
+
+    kb_a = KnowledgeBase.load(args.knowledge_a)
+    kb_b = KnowledgeBase.load(args.knowledge_b)
+    golden = GoldenDataset.load(args.golden)
+
+    metrics = args.metrics.split(",") if args.metrics else None
+
+    comparison = Evaluator.compare(
+        kb_a, kb_b, golden,
+        metrics=metrics,
+        top_k=args.k,
+        mode=args.mode,
+        rerank=args.rerank,
+        label_a=args.knowledge_a,
+        label_b=args.knowledge_b,
+    )
+
+    if args.json:
+        print(json.dumps(comparison, indent=2))
+    else:
+        Evaluator.print_comparison(comparison)
+    return 0
+
+
+def _cmd_eval_bootstrap(args: argparse.Namespace) -> int:
+    """Generate a draft golden dataset from an existing KB."""
+    from ragforge.evaluation import generate_golden_draft
+
+    print(f"Generating draft golden dataset from '{args.knowledge}'...")
+    golden = generate_golden_draft(
+        knowledge=args.knowledge,
+        num_items=args.n,
+        llm=args.llm,
+    )
+    golden.save(args.out)
+    print(f"Saved {len(golden)} items to {args.out}")
+    print("NOTE: This is a DRAFT. Review and correct before using as ground truth.")
     return 0
 
 
@@ -214,8 +304,64 @@ def build_parser() -> argparse.ArgumentParser:
         help="retrieval mode (default: hybrid)",
     )
     sp.add_argument("--rerank", action="store_true", help="apply cross-encoder reranking")
+    sp.add_argument(
+        "--generate",
+        action="store_true",
+        help="generate a grounded answer using an LLM (requires --llm)",
+    )
+    sp.add_argument(
+        "--llm",
+        default=None,
+        help="LLM provider for answer generation: 'openai', 'anthropic', 'ollama'",
+    )
+    sp.add_argument(
+        "--model",
+        default=None,
+        help="override the default model for the LLM provider",
+    )
     sp.add_argument("--json", action="store_true", help="output as JSON")
     sp.set_defaults(func=_cmd_query)
+
+    # --- eval ---
+    eval_parser = sub.add_parser("eval", help="evaluate RAG quality")
+    eval_sub = eval_parser.add_subparsers(dest="eval_command", required=True)
+
+    # eval run
+    sp = eval_sub.add_parser("run", help="evaluate a KB against a golden dataset")
+    sp.add_argument("knowledge", help="knowledge base name")
+    sp.add_argument("golden", help="path to golden dataset (JSON or CSV)")
+    sp.add_argument("-k", type=int, default=5, help="top-k for retrieval (default: 5)")
+    sp.add_argument("--mode", choices=["dense", "bm25", "hybrid"], default="hybrid")
+    sp.add_argument("--rerank", action="store_true", help="apply reranking")
+    sp.add_argument("--generate", action="store_true", help="generate answers (for judge metrics)")
+    sp.add_argument("--llm", default=None, help="LLM provider for generation + judge")
+    sp.add_argument(
+        "--metrics",
+        default=None,
+        help="comma-separated metrics (default: all retrieval metrics)",
+    )
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_eval_run)
+
+    # eval compare
+    sp = eval_sub.add_parser("compare", help="A/B compare two configs on same golden set")
+    sp.add_argument("knowledge_a", help="first knowledge base name")
+    sp.add_argument("knowledge_b", help="second knowledge base name")
+    sp.add_argument("golden", help="path to golden dataset (JSON or CSV)")
+    sp.add_argument("-k", type=int, default=5, help="top-k for retrieval")
+    sp.add_argument("--mode", choices=["dense", "bm25", "hybrid"], default="hybrid")
+    sp.add_argument("--rerank", action="store_true")
+    sp.add_argument("--metrics", default=None, help="comma-separated metrics")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_eval_compare)
+
+    # eval bootstrap
+    sp = eval_sub.add_parser("bootstrap", help="generate a draft golden dataset from a KB")
+    sp.add_argument("knowledge", help="knowledge base to generate from")
+    sp.add_argument("--out", default="golden_draft.json", help="output file path")
+    sp.add_argument("-n", type=int, default=10, help="number of items to generate")
+    sp.add_argument("--llm", default="ollama", help="LLM provider for generation")
+    sp.set_defaults(func=_cmd_eval_bootstrap)
 
     # --- serve ---
     sp = sub.add_parser("serve", help="start the HTTP/JSON API server")

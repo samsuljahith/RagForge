@@ -197,6 +197,77 @@ class KnowledgeBase:
         )
 
     # ------------------------------------------------------------------
+    # Answer (retrieve + generate grounded answer)
+    # ------------------------------------------------------------------
+
+    def answer(
+        self,
+        question: str,
+        top_k: int = 5,
+        mode: RetrievalMode = "hybrid",
+        rerank: bool = False,
+        llm: str = "ollama",
+        llm_opts: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Retrieve relevant chunks AND generate a grounded answer with sources.
+
+        This is the full RAG loop: question → retrieve → generate → answer + sources.
+        The LLM is instructed to answer ONLY from retrieved context and to refuse
+        if the context doesn't contain the answer.
+
+        Args:
+            question: The question to answer.
+            top_k: Number of chunks to retrieve for context.
+            mode: Retrieval mode — "dense", "bm25", or "hybrid".
+            rerank: Whether to apply cross-encoder reranking.
+            llm: LLM provider name — "openai", "anthropic", or "ollama".
+            llm_opts: Options passed to the LLM provider constructor (e.g. model="gpt-4o").
+
+        Returns:
+            dict with:
+                answer: The generated answer text.
+                sources: List of chunks used as context (with scores and metadata).
+                question: The original question.
+                mode: Retrieval mode used.
+                llm_name: Name/model of the LLM that generated the answer.
+        """
+        from ragforge.pipeline.generation import get_llm, build_grounded_prompt
+
+        llm_opts = llm_opts or {}
+
+        # Step 1: Retrieve relevant chunks
+        results = self.query(question=question, top_k=top_k, mode=mode, rerank=rerank)
+
+        # Step 2: Format chunks for the prompt
+        sources = [
+            {
+                "id": chunk.id,
+                "text": chunk.text,
+                "doc_id": chunk.doc_id,
+                "index": chunk.index,
+                "metadata": chunk.metadata,
+                "score": round(score, 4),
+            }
+            for chunk, score in results
+        ]
+
+        # Step 3: Build grounded prompt
+        prompt = build_grounded_prompt(question, sources)
+
+        # Step 4: Generate answer
+        provider = get_llm(llm, **llm_opts)
+        answer_text = provider.generate(prompt)
+
+        return {
+            "answer": answer_text,
+            "sources": sources,
+            "question": question,
+            "mode": mode,
+            "llm_name": provider.name,
+        }
+
+    # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
 
@@ -338,15 +409,38 @@ def query_knowledge_base(
     top_k: int = 5,
     mode: RetrievalMode = "hybrid",
     rerank: bool = False,
+    generate: bool = False,
+    llm: str | None = None,
+    llm_opts: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Query a knowledge base (functional interface for API/CLI).
 
-    Loads the KB from disk and runs a query. Returns a plain dict suitable
-    for JSON serialization in API responses.
+    Loads the KB from disk and runs a query. If generate=True and an LLM
+    is configured, also generates a grounded answer with sources.
+    Returns a plain dict suitable for JSON serialization in API responses.
     """
     kb = KnowledgeBase.load(knowledge)
 
+    # If generation requested, use the full answer() path
+    if generate and llm:
+        result = kb.answer(
+            question=question,
+            top_k=top_k,
+            mode=mode,
+            rerank=rerank,
+            llm=llm,
+            llm_opts=llm_opts or {},
+        )
+        return {
+            "question": question,
+            "knowledge": knowledge,
+            "chunks": result["sources"],
+            "answer": result["answer"],
+            "llm": result["llm_name"],
+        }
+
+    # Otherwise, retrieval-only (existing behavior)
     results = kb.query(question=question, top_k=top_k, mode=mode, rerank=rerank)
 
     chunks_out = [
@@ -365,5 +459,5 @@ def query_knowledge_base(
         "question": question,
         "knowledge": knowledge,
         "chunks": chunks_out,
-        "answer": None,  # Answer generation requires an LLM — future feature
+        "answer": None,
     }
