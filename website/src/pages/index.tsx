@@ -71,7 +71,7 @@ function BattleVideo({caveman}: {caveman: boolean}) {
         muted
         playsInline
         key={caveman ? 'anime' : 'realistic'}
-        src={caveman ? '/RagForge/videos/Vid2.mp4' : '/RagForge/videos/Vid1.mp4'}
+        src={caveman ? '/videos/Vid2.mp4' : '/videos/Vid1.mp4'}
       />
       <div className="battle-video__overlay" />
     </div>

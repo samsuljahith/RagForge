@@ -7,8 +7,8 @@ const config: Config = {
   tagline: 'One workshop for building, evaluating, and optimizing RAG — usable from any language',
   favicon: 'img/favicon.svg',
 
-  url: 'https://samsuljahith.github.io',
-  baseUrl: '/RagForge/',
+  url: 'https://rag-forge-o1d8.vercel.app',
+  baseUrl: '/',
 
   organizationName: 'samsuljahith',
   projectName: 'RagForge',
