@@ -1,206 +1,234 @@
 """
-High-level pipeline operations: build knowledge bases and query them.
+Hybrid retriever: dense + BM25 + Reciprocal Rank Fusion + optional reranking.
 
-This module ties together parsing, chunking, embedding, and storage into
-simple top-level functions that the API and CLI call.
+This is the core retrieval engine. It runs dense (vector) and sparse (BM25) search
+together, fuses their ranked lists using RRF, and optionally re-scores the top
+candidates with a cross-encoder reranker for maximum precision.
+
+Modes:
+    "dense"  — vector search only (fast, good for semantic similarity)
+    "bm25"   — keyword search only (catches exact matches dense might miss)
+    "hybrid" — both fused via RRF (default, best overall quality)
+
+Reranking:
+    When enabled, the top candidates from fusion are re-scored by a cross-encoder
+    (default: cross-encoder/ms-marco-MiniLM-L-6-v2). This is optional — if the
+    dependency isn't installed, reranking is silently skipped with a warning.
 """
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
+import warnings
+from typing import Any, Literal
 
-from ragforge.core.models import Chunk, Document
-from ragforge.core.registry import get
-from ragforge.parsing import parse_file
-from ragforge.chunking import chunk_document
-from ragforge.pipeline.embeddings import EmbeddingModel, DefaultEmbedding
-from ragforge.pipeline.store import InMemoryStore, VectorStore
+from ragforge.core.models import Chunk
+from ragforge.pipeline.embeddings import Embedder
+from ragforge.pipeline.store import VectorStore
 from ragforge.pipeline.bm25 import BM25Index
 
-# Store location for persisted knowledge bases
-_KB_DIR = Path.home() / ".ragforge" / "knowledge_bases"
+
+# Type alias for retrieval mode
+RetrievalMode = Literal["dense", "bm25", "hybrid"]
 
 
-def _get_kb_path(name: str) -> Path:
-    return _KB_DIR / name
-
-
-def _get_embedding_model(model_name: str) -> EmbeddingModel:
-    """Get an embedding model by name from the registry."""
-    try:
-        cls = get("embedding", model_name)
-        return cls()
-    except KeyError:
-        # Fallback to default
-        return DefaultEmbedding()
-
-
-def build_knowledge_base(
-    name: str,
-    sources: list[str],
-    embedding_model: str = "default",
-    chunk_strategy: str = "structure",
-    chunk_options: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+def reciprocal_rank_fusion(
+    *ranked_lists: list[tuple[Chunk, float]],
+    k: int = 60,
+) -> list[tuple[Chunk, float]]:
     """
-    Build a knowledge base: parse sources, chunk, embed, and store.
+    Reciprocal Rank Fusion (RRF) — merges multiple ranked lists into one.
+
+    RRF is model-free and score-agnostic: it only uses rank positions, making it
+    robust when combining scores from different systems (cosine sim vs BM25 scores).
+
+    Formula: RRF_score(d) = Σ 1 / (k + rank_i(d))
+    where k is a constant (default 60, from the original RRF paper).
 
     Args:
-        name: Name for the knowledge base (used for persistence)
-        sources: File paths to parse and index
-        embedding_model: Name of the embedding model to use
-        chunk_strategy: Chunking strategy ('fixed' or 'structure')
-        chunk_options: Options passed to the chunker
+        *ranked_lists: One or more lists of (chunk, score) pairs, each already
+                       sorted by descending score.
+        k: RRF constant. Higher values dampen the effect of rank differences.
 
     Returns:
-        dict with build results (name, status, counts, model used)
+        Merged list of (chunk, rrf_score) pairs, sorted by descending RRF score.
     """
-    chunk_options = chunk_options or {}
-    embedder = _get_embedding_model(embedding_model)
-    store = InMemoryStore()
-    bm25 = BM25Index()
-
-    all_chunks: list[Chunk] = []
-    num_documents = 0
-
-    for source in sources:
-        p = Path(source)
-        if p.is_dir():
-            files = [f for f in p.rglob("*") if f.is_file() and not f.name.startswith(".")]
-        else:
-            files = [p]
-
-        for file_path in files:
-            try:
-                doc = parse_file(str(file_path))
-                chunks = chunk_document(doc, strategy=chunk_strategy, **chunk_options)
-                all_chunks.extend(chunks)
-                num_documents += 1
-            except (ValueError, ImportError):
-                # Skip files we can't parse
-                continue
-
-    if all_chunks:
-        # Embed and store
-        texts = [c.text for c in all_chunks]
-        vectors = embedder.embed_batch(texts)
-        store.add(all_chunks, vectors)
-        bm25.add(all_chunks)
-
-    # Persist
-    kb_path = _get_kb_path(name)
-    kb_path.mkdir(parents=True, exist_ok=True)
-    store.save(kb_path / "vectors.json")
-
-    # Save BM25 index data and metadata
-    meta = {
-        "name": name,
-        "embedding_model": embedding_model,
-        "chunk_strategy": chunk_strategy,
-        "chunk_options": chunk_options,
-        "num_documents": num_documents,
-        "num_chunks": len(all_chunks),
-        "embedding_dim": embedder.dimension,
-    }
-    (kb_path / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-
-    return {
-        "name": name,
-        "status": "built",
-        "num_documents": num_documents,
-        "num_chunks": len(all_chunks),
-        "embedding_model": embedding_model,
-    }
-
-
-def query_knowledge_base(
-    knowledge: str,
-    question: str,
-    top_k: int = 5,
-    rerank: bool = True,
-) -> dict[str, Any]:
-    """
-    Query a knowledge base with hybrid search (dense + BM25) and optional reranking.
-
-    Args:
-        knowledge: Name of the knowledge base
-        question: The question to answer
-        top_k: Number of results to return
-        rerank: Whether to apply reranking
-
-    Returns:
-        dict with question, knowledge name, retrieved chunks, and optional answer
-    """
-    kb_path = _get_kb_path(knowledge)
-    if not kb_path.exists():
-        raise FileNotFoundError(f"Knowledge base '{knowledge}' not found")
-
-    # Load metadata and store
-    meta = json.loads((kb_path / "meta.json").read_text(encoding="utf-8"))
-    store = InMemoryStore.load(kb_path / "vectors.json")
-
-    # Get embedding model
-    embedder = _get_embedding_model(meta.get("embedding_model", "default"))
-
-    # Dense search
-    query_vector = embedder.embed(question)
-    dense_results = store.search(query_vector, top_k=top_k * 2)
-
-    # BM25 search (rebuild index from stored chunks)
-    bm25 = BM25Index()
-    # Get all chunks from the store for BM25
-    all_chunks = store._chunks  # Access internal for BM25 rebuild
-    if all_chunks:
-        bm25.add(all_chunks)
-    sparse_results = bm25.search(question, top_k=top_k * 2)
-
-    # Hybrid: combine scores with Reciprocal Rank Fusion (RRF)
-    chunk_scores: dict[str, float] = {}
+    scores: dict[str, float] = {}
     chunk_map: dict[str, Chunk] = {}
-    k = 60  # RRF constant
 
-    for rank, (chunk, _score) in enumerate(dense_results):
-        chunk_scores[chunk.id] = chunk_scores.get(chunk.id, 0.0) + 1.0 / (k + rank + 1)
-        chunk_map[chunk.id] = chunk
+    for ranked_list in ranked_lists:
+        for rank, (chunk, _score) in enumerate(ranked_list):
+            scores[chunk.id] = scores.get(chunk.id, 0.0) + 1.0 / (k + rank + 1)
+            chunk_map[chunk.id] = chunk
 
-    for rank, (chunk, _score) in enumerate(sparse_results):
-        chunk_scores[chunk.id] = chunk_scores.get(chunk.id, 0.0) + 1.0 / (k + rank + 1)
-        chunk_map[chunk.id] = chunk
+    # Sort by RRF score descending
+    fused = [(chunk_map[cid], score) for cid, score in scores.items()]
+    fused.sort(key=lambda x: x[1], reverse=True)
+    return fused
 
-    # Sort by combined score
-    ranked = sorted(chunk_scores.items(), key=lambda x: x[1], reverse=True)
 
-    # Simple reranking: boost chunks that have query terms as exact matches
-    if rerank:
-        query_terms = set(question.lower().split())
-        reranked = []
-        for chunk_id, score in ranked:
-            chunk = chunk_map[chunk_id]
-            chunk_lower = chunk.text.lower()
-            # Boost for exact phrase overlap
-            match_count = sum(1 for t in query_terms if t in chunk_lower)
-            boost = 1.0 + (match_count / max(1, len(query_terms))) * 0.5
-            reranked.append((chunk_id, score * boost))
-        ranked = sorted(reranked, key=lambda x: x[1], reverse=True)
+class Retriever:
+    """
+    Hybrid retriever with configurable search modes and optional reranking.
 
-    # Take top_k
-    final_chunks = []
-    for chunk_id, score in ranked[:top_k]:
-        chunk = chunk_map[chunk_id]
-        final_chunks.append({
-            "id": chunk.id,
-            "text": chunk.text,
-            "doc_id": chunk.doc_id,
-            "index": chunk.index,
-            "metadata": chunk.metadata,
-            "score": round(score, 4),
-        })
+    Ties together a VectorStore (dense search), a BM25Index (sparse search),
+    and an Embedder (to encode queries). Fuses results via RRF and optionally
+    re-scores with a cross-encoder.
 
-    return {
-        "question": question,
-        "knowledge": knowledge,
-        "chunks": final_chunks,
-        "answer": None,  # Answer generation requires an LLM — future feature
-    }
+    Usage:
+        retriever = Retriever(embedder=emb, store=store, bm25=bm25)
+        results = retriever.search("How do refunds work?", top_k=5, mode="hybrid")
+        # -> [(chunk, score), ...]
+    """
+
+    def __init__(
+        self,
+        embedder: Embedder,
+        store: VectorStore,
+        bm25: BM25Index,
+        reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    ) -> None:
+        """
+        Args:
+            embedder: The embedding model (for encoding queries in dense search).
+            store: The vector store containing indexed chunk embeddings.
+            bm25: The BM25 keyword index over the same chunks.
+            reranker_model: Cross-encoder model name for reranking (loaded on demand).
+        """
+        self.embedder = embedder
+        self.store = store
+        self.bm25 = bm25
+        self._reranker_model_name = reranker_model
+        self._reranker: Any = None  # Lazy-loaded cross-encoder
+
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        mode: RetrievalMode = "hybrid",
+        rerank: bool = False,
+        rerank_top_n: int | None = None,
+    ) -> list[tuple[Chunk, float]]:
+        """
+        Retrieve the most relevant chunks for a query.
+
+        Args:
+            query: The search query / question.
+            top_k: Number of final results to return.
+            mode: Search mode — "dense", "bm25", or "hybrid" (default).
+            rerank: Whether to apply cross-encoder reranking on the top candidates.
+            rerank_top_n: How many candidates to feed to the reranker (default: top_k * 3).
+
+        Returns:
+            List of (chunk, score) pairs, sorted by descending relevance.
+        """
+        if rerank_top_n is None:
+            rerank_top_n = top_k * 3
+
+        # Phase 1: Initial retrieval (depends on mode)
+        candidates = self._retrieve(query, top_n=rerank_top_n if rerank else top_k, mode=mode)
+
+        if not candidates:
+            return []
+
+        # Phase 2: Optional reranking
+        if rerank:
+            candidates = self._rerank(query, candidates, top_k=top_k)
+        else:
+            candidates = candidates[:top_k]
+
+        return candidates
+
+    def _retrieve(
+        self,
+        query: str,
+        top_n: int,
+        mode: RetrievalMode,
+    ) -> list[tuple[Chunk, float]]:
+        """Run the initial retrieval phase based on mode."""
+        if mode == "dense":
+            return self._dense_search(query, top_n)
+        elif mode == "bm25":
+            return self._bm25_search(query, top_n)
+        elif mode == "hybrid":
+            return self._hybrid_search(query, top_n)
+        else:
+            raise ValueError(f"Unknown retrieval mode: {mode!r}. Use 'dense', 'bm25', or 'hybrid'.")
+
+    def _dense_search(self, query: str, top_k: int) -> list[tuple[Chunk, float]]:
+        """Pure dense (vector) search."""
+        query_vector = self.embedder.encode_single(query)
+        return self.store.search(query_vector, top_k=top_k)
+
+    def _bm25_search(self, query: str, top_k: int) -> list[tuple[Chunk, float]]:
+        """Pure BM25 (keyword) search."""
+        return self.bm25.search(query, top_k=top_k)
+
+    def _hybrid_search(self, query: str, top_n: int) -> list[tuple[Chunk, float]]:
+        """
+        Hybrid search: dense + BM25 fused via Reciprocal Rank Fusion.
+
+        Retrieves top_n * 2 from each source to ensure good coverage before fusion.
+        """
+        fetch_k = top_n * 2
+        dense_results = self._dense_search(query, fetch_k)
+        bm25_results = self._bm25_search(query, fetch_k)
+
+        # Fuse via RRF
+        fused = reciprocal_rank_fusion(dense_results, bm25_results, k=60)
+        return fused[:top_n]
+
+    def _rerank(
+        self,
+        query: str,
+        candidates: list[tuple[Chunk, float]],
+        top_k: int,
+    ) -> list[tuple[Chunk, float]]:
+        """
+        Re-score candidates using a cross-encoder reranker.
+
+        Cross-encoders see (query, chunk_text) together, enabling much richer
+        interaction modeling than bi-encoder similarity. This is slower but
+        significantly more accurate for the final ranking.
+
+        Degrades gracefully: if the cross-encoder dependency is not installed,
+        logs a warning and returns candidates unchanged.
+        """
+        if not candidates:
+            return []
+
+        # Lazy-load the reranker
+        if self._reranker is None:
+            try:
+                from sentence_transformers import CrossEncoder
+
+                self._reranker = CrossEncoder(self._reranker_model_name)
+            except ImportError:
+                warnings.warn(
+                    "Reranking requested but sentence-transformers is not installed. "
+                    "Skipping reranking. Install with: pip install ragforge[pipeline]",
+                    stacklevel=2,
+                )
+                return candidates[:top_k]
+            except Exception as e:
+                warnings.warn(
+                    f"Failed to load reranker model '{self._reranker_model_name}': {e}. "
+                    "Skipping reranking.",
+                    stacklevel=2,
+                )
+                return candidates[:top_k]
+
+        # Score all (query, chunk_text) pairs
+        pairs = [(query, chunk.text) for chunk, _score in candidates]
+        try:
+            rerank_scores = self._reranker.predict(pairs)
+        except Exception as e:
+            warnings.warn(f"Reranking failed: {e}. Returning original ranking.", stacklevel=2)
+            return candidates[:top_k]
+
+        # Combine with reranker scores (reranker scores replace retrieval scores)
+        reranked = [
+            (chunk, float(rscore))
+            for (chunk, _orig_score), rscore in zip(candidates, rerank_scores)
+        ]
+        reranked.sort(key=lambda x: x[1], reverse=True)
+        return reranked[:top_k]

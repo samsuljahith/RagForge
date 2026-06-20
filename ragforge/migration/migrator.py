@@ -14,20 +14,20 @@ from typing import Any
 
 from ragforge.core.models import Chunk
 from ragforge.core.registry import get
-from ragforge.pipeline.embeddings import EmbeddingModel, DefaultEmbedding
+from ragforge.pipeline.embeddings import Embedder, DefaultEmbedder
 from ragforge.pipeline.store import InMemoryStore
 
 
 _KB_DIR = Path.home() / ".ragforge" / "knowledge_bases"
 
 
-def _get_embedding_model(model_name: str) -> EmbeddingModel:
+def _get_embedder(model_name: str) -> Embedder:
     """Get an embedding model by name."""
     try:
-        cls = get("embedding", model_name)
+        cls = get("embedder", model_name)
         return cls()
     except KeyError:
-        return DefaultEmbedding()
+        return DefaultEmbedder()
 
 
 def migrate_knowledge_base(
@@ -68,7 +68,7 @@ def migrate_knowledge_base(
         raise FileNotFoundError(f"Vector store not found for '{knowledge}'")
 
     old_store = InMemoryStore.load(store_path)
-    chunks = old_store._chunks
+    chunks = old_store.chunks
 
     if not chunks:
         return {
@@ -80,11 +80,11 @@ def migrate_knowledge_base(
         }
 
     # Get the new embedding model
-    new_embedder = _get_embedding_model(to_model)
+    new_embedder = _get_embedder(to_model)
 
     # Re-embed all chunks with the new model
     texts = [c.text for c in chunks]
-    new_vectors = new_embedder.embed_batch(texts)
+    new_vectors = new_embedder.encode(texts)
 
     # Build shadow index
     new_store = InMemoryStore()
@@ -95,14 +95,14 @@ def migrate_knowledge_base(
 
     # Validate if requested
     if validate:
-        old_embedder = _get_embedding_model(from_model)
+        old_embedder = _get_embedder(from_model)
 
         # Simple validation: compare retrieval similarity on a sample query
         # Use the first chunk's text as a test query (it should retrieve itself)
         if chunks:
             test_text = chunks[0].text[:100]
-            old_vec = old_embedder.embed(test_text)
-            new_vec = new_embedder.embed(test_text)
+            old_vec = old_embedder.encode_single(test_text)
+            new_vec = new_embedder.encode_single(test_text)
 
             old_results = old_store.search(old_vec, top_k=3)
             new_results = new_store.search(new_vec, top_k=3)
@@ -134,9 +134,9 @@ def migrate_knowledge_base(
     else:
         meta = {}
 
-    meta["embedding_model"] = to_model
+    meta["embedder_name"] = to_model
     meta["migrated_from"] = from_model
-    meta["embedding_dim"] = new_embedder.dimension
+    meta["embedder_dim"] = new_embedder.dimension
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
     return {

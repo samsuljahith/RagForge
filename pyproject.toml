@@ -23,9 +23,20 @@ classifiers = [
 ]
 
 # Core install is intentionally dependency-free so `pip install ragforge` is instant.
+# The default pipeline path (hash embedder + in-memory store) works with zero deps.
+# numpy is optional but recommended for vector search speed.
 dependencies = []
 
 [project.optional-dependencies]
+# Pipeline: local sentence-transformers embeddings + cross-encoder reranking
+pipeline = [
+    "sentence-transformers>=2.2.0",
+    "numpy>=1.21.0",
+]
+# OpenAI embeddings
+openai = [
+    "openai>=1.0.0",
+]
 # API server (FastAPI + Uvicorn)
 api = [
     "fastapi>=0.100.0",
@@ -34,10 +45,6 @@ api = [
 ]
 # PDF parsing
 pdf = ["pypdf>=4.0"]
-# Pipeline (embedding + vector store) — future heavy deps
-pipeline = [
-    "sentence-transformers>=2.2.0",
-]
 # Evaluation
 eval = []
 # Quantization
@@ -48,6 +55,8 @@ migration = []
 all = [
     "ragforge[api]",
     "ragforge[pdf]",
+    "ragforge[pipeline]",
+    "ragforge[openai]",
 ]
 # Development / testing
 dev = [
@@ -55,6 +64,7 @@ dev = [
     "pytest-cov>=4.0",
     "httpx>=0.24.0",
     "ruff>=0.1.0",
+    "numpy>=1.21.0",
 ]
 
 [project.scripts]

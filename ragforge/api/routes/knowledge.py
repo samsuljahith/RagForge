@@ -1,8 +1,8 @@
-"""POST /knowledge — build/index a knowledge base (requires pipeline module)."""
+"""POST /knowledge — build/index a knowledge base."""
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -14,10 +14,10 @@ class KnowledgeRequest(BaseModel):
     """Request to build a knowledge base."""
 
     name: str = Field(..., description="Name for this knowledge base")
-    sources: list[str] = Field(..., description="List of file paths or URLs to index")
-    embedding_model: str = Field("default", description="Embedding model to use")
-    chunk_strategy: str = Field("structure", description="Chunking strategy")
-    chunk_options: dict[str, Any] = Field(default_factory=dict, description="Chunking options")
+    sources: list[str] = Field(..., description="List of file paths or directories to index")
+    embedding_model: str = Field("default", description="Embedder name: 'default', 'sentence-transformers', 'openai'")
+    chunk_strategy: str = Field("structure", description="Chunking strategy: 'structure' or 'fixed'")
+    chunk_options: dict[str, Any] = Field(default_factory=dict, description="Chunking options (e.g. max_tokens)")
 
 
 class KnowledgeResponse(BaseModel):
@@ -36,15 +36,9 @@ def build_knowledge(req: KnowledgeRequest) -> KnowledgeResponse:
     Build or index a knowledge base from source documents.
 
     Parses, chunks, embeds, and stores documents for later retrieval via /query.
-    Requires the pipeline module: pip install ragforge[pipeline]
+    Uses the specified embedder (default works with zero heavy deps).
     """
-    try:
-        from ragforge.pipeline import build_knowledge_base
-    except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail="Pipeline module not available. Install with: pip install ragforge[pipeline]",
-        )
+    from ragforge.pipeline import build_knowledge_base
 
     try:
         result = build_knowledge_base(
@@ -54,6 +48,8 @@ def build_knowledge(req: KnowledgeRequest) -> KnowledgeResponse:
             chunk_strategy=req.chunk_strategy,
             chunk_options=req.chunk_options,
         )
+    except ImportError as e:
+        raise HTTPException(status_code=501, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Knowledge base build failed: {e}")
 

@@ -11,11 +11,11 @@ import math
 from typing import Any
 
 from ragforge.core.registry import register
-from ragforge.pipeline.embeddings import EmbeddingModel, DefaultEmbedding
+from ragforge.pipeline.embeddings import Embedder, DefaultEmbedder
 
 
-@register("embedding", "quantized")
-class QuantizedEmbedding(EmbeddingModel):
+@register("embedder", "quantized")
+class QuantizedEmbedding(Embedder):
     """
     A quantized wrapper around any embedding model.
 
@@ -24,8 +24,8 @@ class QuantizedEmbedding(EmbeddingModel):
     would use actual int8/binary quantization.
     """
 
-    def __init__(self, base_model: EmbeddingModel | None = None, bits: int = 8) -> None:
-        self._base = base_model or DefaultEmbedding()
+    def __init__(self, base_model: Embedder | None = None, bits: int = 8) -> None:
+        self._base = base_model or DefaultEmbedder()
         self._bits = bits
         self._levels = 2 ** bits
 
@@ -33,9 +33,18 @@ class QuantizedEmbedding(EmbeddingModel):
     def dimension(self) -> int:
         return self._base.dimension
 
+    @property
+    def name(self) -> str:
+        return f"{self._base.name}_quantized_{self._bits}bit"
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        """Encode texts then quantize the resulting vectors."""
+        raw_vectors = self._base.encode(texts)
+        return [self._quantize_vector(v) for v in raw_vectors]
+
     def embed(self, text: str) -> list[float]:
-        raw = self._base.embed(text)
-        return self._quantize_vector(raw)
+        """Backward-compat: embed a single text."""
+        return self.encode([text])[0]
 
     def _quantize_vector(self, vec: list[float]) -> list[float]:
         """Simulate quantization by reducing precision."""
@@ -98,10 +107,10 @@ def quantize_and_compare(
     # Get the base model
     from ragforge.core.registry import get
     try:
-        base_cls = get("embedding", target)
+        base_cls = get("embedder", target)
         base_model = base_cls()
     except KeyError:
-        base_model = DefaultEmbedding()
+        base_model = DefaultEmbedder()
 
     # Create quantized version
     quantized = QuantizedEmbedding(base_model=base_model, bits=bits)
@@ -115,7 +124,7 @@ def quantize_and_compare(
     }
 
     after_info = {
-        "model": f"{target}_quantized_{bits}bit",
+        "model": quantized.name,
         "bits": bits,
         "dimension": quantized.dimension,
         "estimated_bytes_per_vector": quantized.dimension * (bits / 8),
@@ -128,11 +137,10 @@ def quantize_and_compare(
     # If knowledge base provided, run before/after evaluation
     if knowledge:
         try:
-            from ragforge.pipeline import query_knowledge_base
             # Simple quality comparison: embed a test query both ways and compare
             test_query = "test quality comparison"
-            base_vec = base_model.embed(test_query)
-            quant_vec = quantized.embed(test_query)
+            base_vec = base_model.encode_single(test_query)
+            quant_vec = quantized.encode_single(test_query)
 
             # Cosine similarity between original and quantized embeddings
             dot = sum(a * b for a, b in zip(base_vec, quant_vec))

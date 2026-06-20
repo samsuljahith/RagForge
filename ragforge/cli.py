@@ -8,8 +8,8 @@ Usage:
     ragforge info
     ragforge parse path/to/file.md
     ragforge chunk path/to/file.md --strategy structure --max-tokens 384
-    ragforge knowledge build my-kb docs/ --strategy structure
-    ragforge knowledge query my-kb "How do refunds work?"
+    ragforge knowledge build my-kb docs/ --strategy structure --embedder default
+    ragforge query my-kb "How do refunds work?" --mode hybrid --rerank
     ragforge serve --host 0.0.0.0 --port 8000
 """
 
@@ -96,7 +96,7 @@ def _cmd_knowledge_build(args: argparse.Namespace) -> int:
     result = build_knowledge_base(
         name=args.name,
         sources=args.sources,
-        embedding_model=args.embedding_model,
+        embedding_model=args.embedder,
         chunk_strategy=args.strategy,
     )
     if args.json:
@@ -105,19 +105,20 @@ def _cmd_knowledge_build(args: argparse.Namespace) -> int:
         print(f"Knowledge base '{result['name']}' built successfully.")
         print(f"  Documents: {result['num_documents']}")
         print(f"  Chunks   : {result['num_chunks']}")
-        print(f"  Model    : {result['embedding_model']}")
+        print(f"  Embedder : {result['embedding_model']}")
     return 0
 
 
-def _cmd_knowledge_query(args: argparse.Namespace) -> int:
+def _cmd_query(args: argparse.Namespace) -> int:
     """Query a knowledge base."""
     from ragforge.pipeline import query_knowledge_base
 
     result = query_knowledge_base(
-        knowledge=args.name,
+        knowledge=args.knowledge,
         question=args.question,
-        top_k=args.top_k,
-        rerank=not args.no_rerank,
+        top_k=args.k,
+        mode=args.mode,
+        rerank=args.rerank,
     )
 
     if args.json:
@@ -125,11 +126,12 @@ def _cmd_knowledge_query(args: argparse.Namespace) -> int:
     else:
         print(f"Query: {result['question']}")
         print(f"Knowledge base: {result['knowledge']}")
+        print(f"Mode: {args.mode}  |  Rerank: {args.rerank}")
         print(f"Results: {len(result['chunks'])} chunks\n")
         for c in result["chunks"]:
             section = c["metadata"].get("section", "")
             head = f"  [{c['index']}] score={c['score']:.4f}"
-            head += f"  section: {section}" if section else ""
+            head += f"  | {section}" if section else ""
             print(head)
             print(f"      {c['text'][:120]}...")
             print()
@@ -184,7 +186,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=_cmd_chunk)
 
     # --- knowledge ---
-    kb_parser = sub.add_parser("knowledge", help="build and query knowledge bases")
+    kb_parser = sub.add_parser("knowledge", help="build knowledge bases")
     kb_sub = kb_parser.add_subparsers(dest="kb_command", required=True)
 
     # knowledge build
@@ -192,18 +194,28 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("name", help="name for the knowledge base")
     sp.add_argument("sources", nargs="+", help="files or directories to index")
     sp.add_argument("--strategy", choices=["fixed", "structure"], default="structure")
-    sp.add_argument("--embedding-model", default="default", help="embedding model to use")
+    sp.add_argument(
+        "--embedder",
+        default="default",
+        help="embedder to use: 'default', 'sentence-transformers', 'openai'",
+    )
     sp.add_argument("--json", action="store_true", help="output as JSON")
     sp.set_defaults(func=_cmd_knowledge_build)
 
-    # knowledge query
-    sp = kb_sub.add_parser("query", help="query a knowledge base")
-    sp.add_argument("name", help="knowledge base name")
+    # --- query (top-level command) ---
+    sp = sub.add_parser("query", help="query a knowledge base")
+    sp.add_argument("knowledge", help="knowledge base name")
     sp.add_argument("question", help="question to ask")
-    sp.add_argument("--top-k", type=int, default=5, help="number of results")
-    sp.add_argument("--no-rerank", action="store_true", help="skip reranking")
+    sp.add_argument("-k", type=int, default=5, help="number of results (default: 5)")
+    sp.add_argument(
+        "--mode",
+        choices=["dense", "bm25", "hybrid"],
+        default="hybrid",
+        help="retrieval mode (default: hybrid)",
+    )
+    sp.add_argument("--rerank", action="store_true", help="apply cross-encoder reranking")
     sp.add_argument("--json", action="store_true", help="output as JSON")
-    sp.set_defaults(func=_cmd_knowledge_query)
+    sp.set_defaults(func=_cmd_query)
 
     # --- serve ---
     sp = sub.add_parser("serve", help="start the HTTP/JSON API server")
