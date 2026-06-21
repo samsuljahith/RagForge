@@ -26,19 +26,46 @@ print(result["answer"])
 
 ## How Retrieval Works
 
-```mermaid
-flowchart LR
-    Q[Query] --> DE[Dense Embedding]
-    Q --> BM[BM25 Tokenize]
-    DE --> VS[Vector Store: Cosine Similarity]
-    BM --> SS[BM25 Index: Keyword Match]
-    VS --> RRF[Reciprocal Rank Fusion]
-    SS --> RRF
-    RRF --> RR[Cross-Encoder Reranking]
-    RR --> TOP[Top-K Chunks]
-    TOP --> LLM[LLM Generation]
-    LLM --> ANS[Grounded Answer + Sources]
-```
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="130" viewBox="0 0 600 130">
+  <rect x="10" y="45" width="55" height="30" rx="6" fill="#1a1a24" stroke="#7c6ff8" strokeWidth="1.5"/>
+  <text x="37" y="63" textAnchor="middle" fontSize="8" fontWeight="600" fill="#7c6ff8">Query</text>
+
+  <rect x="100" y="15" width="75" height="28" rx="6" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="1.5"><animate attributeName="opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="137" y="32" textAnchor="middle" fontSize="7" fontWeight="600" fill="#ff6b2c">Dense Embed</text>
+
+  <rect x="100" y="55" width="75" height="28" rx="6" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1.5"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="137" y="72" textAnchor="middle" fontSize="7" fontWeight="600" fill="#fbbf24">BM25</text>
+
+  <rect x="215" y="15" width="85" height="28" rx="6" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="1"/>
+  <text x="257" y="32" textAnchor="middle" fontSize="7" fill="#ff6b2c">Vector Search</text>
+  <rect x="215" y="55" width="85" height="28" rx="6" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1"/>
+  <text x="257" y="72" textAnchor="middle" fontSize="7" fill="#fbbf24">Keyword Match</text>
+
+  <rect x="335" y="30" width="65" height="40" rx="8" fill="#1a1a24" stroke="#a78bfa" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/></rect>
+  <text x="367" y="50" textAnchor="middle" fontSize="8" fontWeight="700" fill="#a78bfa">RRF</text>
+  <text x="367" y="62" textAnchor="middle" fontSize="6" fill="#6a6a80">fusion</text>
+
+  <rect x="430" y="30" width="55" height="40" rx="6" fill="#1a1a24" stroke="#22d3ee" strokeWidth="1.5"/>
+  <text x="457" y="50" textAnchor="middle" fontSize="7" fontWeight="600" fill="#22d3ee">Rerank</text>
+  <text x="457" y="62" textAnchor="middle" fontSize="6" fill="#6a6a80">cross-enc</text>
+
+  <rect x="515" y="30" width="70" height="40" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="2"/>
+  <text x="550" y="48" textAnchor="middle" fontSize="8" fontWeight="700" fill="#34d399">Answer</text>
+  <text x="550" y="60" textAnchor="middle" fontSize="6" fill="#34d399">+ sources</text>
+
+  <circle r="3" fill="#7c6ff8"><animateMotion dur="1.2s" repeatCount="indefinite" path="M67,55 L98,29"/></circle>
+  <circle r="3" fill="#7c6ff8"><animateMotion dur="1.4s" repeatCount="indefinite" path="M67,65 L98,69"/></circle>
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.3s" repeatCount="indefinite" path="M177,29 L213,29"/></circle>
+  <circle r="3" fill="#fbbf24"><animateMotion dur="1.3s" repeatCount="indefinite" path="M177,69 L213,69"/></circle>
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.2s" repeatCount="indefinite" path="M302,29 L333,45"/></circle>
+  <circle r="3" fill="#fbbf24"><animateMotion dur="1.2s" repeatCount="indefinite" path="M302,69 L333,55"/></circle>
+  <circle r="3" fill="#a78bfa"><animateMotion dur="1s" repeatCount="indefinite" path="M402,50 L428,50"/></circle>
+  <circle r="3" fill="#22d3ee"><animateMotion dur="1s" repeatCount="indefinite" path="M487,50 L513,50"/></circle>
+
+  <text x="300" y="110" textAnchor="middle" fontSize="7" fill="#6a6a80">Hybrid: dense catches meaning, BM25 catches exact terms → fused → reranked → grounded answer</text>
+</svg>
+</div>
 
 1. **Dense search**: Embed the query, find similar vectors via cosine similarity
 2. **BM25 search**: Keyword matching for terms dense search might miss

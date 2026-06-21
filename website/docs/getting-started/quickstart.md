@@ -4,6 +4,29 @@ sidebar_position: 3
 
 # Quickstart
 
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="80" viewBox="0 0 550 80">
+  <rect x="10" y="20" width="80" height="40" rx="6" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="1.5"/>
+  <text x="50" y="38" textAnchor="middle" fontSize="7" fontWeight="600" fill="#ff6b2c">pip install</text>
+  <text x="50" y="50" textAnchor="middle" fontSize="6" fill="#6a6a80">ragforge</text>
+  <rect x="130" y="15" width="60" height="25" rx="5" fill="#1a1a24" stroke="#34d399" strokeWidth="1"><animate attributeName="opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="160" y="31" textAnchor="middle" fontSize="7" fill="#34d399">CLI</text>
+  <rect x="130" y="45" width="60" height="25" rx="5" fill="#1a1a24" stroke="#7c6ff8" strokeWidth="1"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="160" y="61" textAnchor="middle" fontSize="7" fill="#7c6ff8">Python</text>
+  <rect x="220" y="15" width="60" height="25" rx="5" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1"><animate attributeName="opacity" values="1;0.7;1" dur="2.5s" repeatCount="indefinite"/></rect>
+  <text x="250" y="31" textAnchor="middle" fontSize="7" fill="#fbbf24">HTTP API</text>
+  <rect x="320" y="20" width="100" height="40" rx="8" fill="#1a1a24" stroke="#34d399" strokeWidth="2"/>
+  <text x="370" y="38" textAnchor="middle" fontSize="7" fontWeight="700" fill="#34d399">Parse → Chunk</text>
+  <text x="370" y="50" textAnchor="middle" fontSize="6" fill="#34d399">→ Search → Answer</text>
+  <rect x="450" y="25" width="75" height="30" rx="6" fill="#1a1a24" stroke="#22d3ee" strokeWidth="1.5"/>
+  <text x="487" y="44" textAnchor="middle" fontSize="7" fontWeight="600" fill="#22d3ee">Result ✓</text>
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.5s" repeatCount="indefinite" path="M92,40 L128,30"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.5s" repeatCount="indefinite" path="M192,27 L318,35"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.3s" repeatCount="indefinite" path="M422,40 L448,40"/></circle>
+  <text x="275" y="75" textAnchor="middle" fontSize="7" fill="#6a6a80">Install → choose your interface (CLI / Python / API) → full RAG pipeline → answers</text>
+</svg>
+</div>
+
 Get productive with RAGForge in under 5 minutes. Three ways to use it: CLI, Python library, or HTTP API.
 
 ## CLI

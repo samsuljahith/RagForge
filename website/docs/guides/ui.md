@@ -54,13 +54,32 @@ Interactive RAG chat interface:
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    BROWSER[Browser UI] --> API[FastAPI Server]
-    API --> TRACES[Trace Store - SQLite]
-    API --> KB[Knowledge Bases]
-    API --> EVAL[Evaluation Engine]
-```
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="100" viewBox="0 0 500 100">
+  <rect x="20" y="30" width="80" height="40" rx="8" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="1.5"><animate attributeName="stroke-opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="60" y="50" textAnchor="middle" fontSize="8" fontWeight="600" fill="#ff6b2c">Browser</text>
+  <text x="60" y="62" textAnchor="middle" fontSize="6" fill="#6a6a80">React SPA</text>
+
+  <rect x="160" y="25" width="90" height="50" rx="8" fill="#1a1a24" stroke="#7c6ff8" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.4;1" dur="1.8s" repeatCount="indefinite"/></rect>
+  <text x="205" y="47" textAnchor="middle" fontSize="8" fontWeight="700" fill="#7c6ff8">FastAPI</text>
+  <text x="205" y="60" textAnchor="middle" fontSize="6" fill="#a78bfa">same server</text>
+
+  <rect x="310" y="15" width="75" height="28" rx="6" fill="#1a1a24" stroke="#2dd4bf" strokeWidth="1"/>
+  <text x="347" y="33" textAnchor="middle" fontSize="7" fill="#2dd4bf">Traces (SQLite)</text>
+
+  <rect x="310" y="48" width="75" height="28" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="1"/>
+  <text x="347" y="66" textAnchor="middle" fontSize="7" fill="#34d399">Knowledge Bases</text>
+
+  <rect x="400" y="30" width="75" height="28" rx="6" fill="#1a1a24" stroke="#22d3ee" strokeWidth="1"/>
+  <text x="437" y="48" textAnchor="middle" fontSize="7" fill="#22d3ee">Evaluation</text>
+
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.5s" repeatCount="indefinite" path="M102,50 L158,50"/></circle>
+  <circle r="3" fill="#7c6ff8"><animateMotion dur="1.5s" repeatCount="indefinite" path="M252,35 L308,29"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.8s" repeatCount="indefinite" path="M252,55 L308,62"/></circle>
+
+  <text x="250" y="92" textAnchor="middle" fontSize="7" fill="#6a6a80">One server serves the UI, API, and docs — no separate process needed</text>
+</svg>
+</div>
 
 The UI is a pre-built React+Vite single-page app served as static files from `ragforge/ui_static/`. The backend uses the same FastAPI app as the main API — no separate server needed.
 

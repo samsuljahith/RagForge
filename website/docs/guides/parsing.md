@@ -4,6 +4,36 @@ sidebar_position: 1
 
 # Parsing Documents
 
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="110" viewBox="0 0 550 110">
+  <rect x="10" y="15" width="45" height="22" rx="4" fill="#1a1a24" stroke="#f87171" strokeWidth="1"><animate attributeName="opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="32" y="29" textAnchor="middle" fontSize="6" fill="#f87171">.pdf</text>
+  <rect x="10" y="42" width="45" height="22" rx="4" fill="#1a1a24" stroke="#60a5fa" strokeWidth="1"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="32" y="56" textAnchor="middle" fontSize="6" fill="#60a5fa">.html</text>
+  <rect x="10" y="69" width="45" height="22" rx="4" fill="#1a1a24" stroke="#34d399" strokeWidth="1"><animate attributeName="opacity" values="1;0.7;1" dur="2.5s" repeatCount="indefinite"/></rect>
+  <text x="32" y="83" textAnchor="middle" fontSize="6" fill="#34d399">.md</text>
+  <rect x="80" y="30" width="80" height="45" rx="8" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="120" y="50" textAnchor="middle" fontSize="8" fontWeight="700" fill="#ff6b2c">Auto-detect</text>
+  <text x="120" y="63" textAnchor="middle" fontSize="6" fill="#6a6a80">by extension</text>
+  <rect x="195" y="30" width="80" height="45" rx="8" fill="#1a1a24" stroke="#7c6ff8" strokeWidth="1.5"/>
+  <text x="235" y="48" textAnchor="middle" fontSize="7" fontWeight="600" fill="#7c6ff8">Clean text</text>
+  <text x="235" y="60" textAnchor="middle" fontSize="6" fill="#a78bfa">+ metadata</text>
+  <text x="235" y="72" textAnchor="middle" fontSize="6" fill="#6a6a80">~token count</text>
+  <rect x="310" y="30" width="90" height="45" rx="8" fill="#1a1a24" stroke="#34d399" strokeWidth="2"/>
+  <text x="355" y="48" textAnchor="middle" fontSize="8" fontWeight="700" fill="#34d399">Document</text>
+  <text x="355" y="60" textAnchor="middle" fontSize="6" fill="#34d399">ready for chunking</text>
+  <rect x="435" y="35" width="70" height="35" rx="6" fill="#1a1a24" stroke="#a78bfa" strokeWidth="1" strokeDasharray="3,2"/>
+  <text x="470" y="50" textAnchor="middle" fontSize="6" fill="#a78bfa">Optional:</text>
+  <text x="470" y="62" textAnchor="middle" fontSize="7" fontWeight="600" fill="#a78bfa">Docling</text>
+  <circle r="3" fill="#f87171"><animateMotion dur="1.3s" repeatCount="indefinite" path="M57,26 L78,45"/></circle>
+  <circle r="3" fill="#60a5fa"><animateMotion dur="1.5s" repeatCount="indefinite" path="M57,53 L78,52"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.7s" repeatCount="indefinite" path="M57,80 L78,60"/></circle>
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.5s" repeatCount="indefinite" path="M162,52 L193,52"/></circle>
+  <circle r="3" fill="#7c6ff8"><animateMotion dur="1.3s" repeatCount="indefinite" path="M277,52 L308,52"/></circle>
+  <text x="275" y="100" textAnchor="middle" fontSize="7" fill="#6a6a80">Any file → auto-detected parser → clean Document object with text + metadata</text>
+</svg>
+</div>
+
 Parsing is treated as a first-class concern in RAGForge because garbage in = garbage out. The parsing module turns source files into clean `Document` objects with consistent structure.
 
 ## Supported Formats

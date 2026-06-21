@@ -109,7 +109,7 @@ const config: Config = {
       additionalLanguages: ['bash', 'python', 'json', 'javascript'],
     },
     mermaid: {
-      theme: {light: 'neutral', dark: 'dark'},
+      theme: {light: 'dark', dark: 'dark'},
     },
   } satisfies Preset.ThemeConfig,
 

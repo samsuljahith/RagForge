@@ -22,14 +22,32 @@ This is the #1 cost driver in multi-agent systems.
 
 Instead of passing messages directly, agents read and write a shared workspace called a **blackboard**:
 
-```mermaid
-graph LR
-    A[Agent: Researcher] -->|writes findings| B[Blackboard]
-    C[Agent: Critic] -->|reads findings| B
-    C -->|writes review| B
-    D[Agent: Writer] -->|reads findings + review| B
-    D -->|writes answer| B
-```
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="130" viewBox="0 0 500 130">
+  <rect x="180" y="20" width="140" height="80" rx="10" fill="#1a1a24" stroke="#ec4899" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.5;1" dur="2.5s" repeatCount="indefinite"/></rect>
+  <text x="250" y="42" textAnchor="middle" fontSize="10" fontWeight="700" fill="#ec4899">Blackboard</text>
+  <text x="250" y="56" textAnchor="middle" fontSize="7" fill="#f9a8d4">shared state</text>
+  <text x="250" y="70" textAnchor="middle" fontSize="6" fill="#6a6a80">findings | review | answer</text>
+  <text x="250" y="82" textAnchor="middle" fontSize="6" fill="#6a6a80">status markers + versions</text>
+  <rect x="20" y="15" width="80" height="28" rx="6" fill="#1a1a24" stroke="#3b82f6" strokeWidth="1.5"><animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="60" y="33" textAnchor="middle" fontSize="7" fontWeight="600" fill="#3b82f6">Researcher</text>
+  <rect x="20" y="53" width="80" height="28" rx="6" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1.5"><animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="60" y="71" textAnchor="middle" fontSize="7" fontWeight="600" fill="#fbbf24">Critic</text>
+  <rect x="20" y="91" width="80" height="28" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="1.5"><animate attributeName="opacity" values="0.5;1;0.5" dur="2.5s" repeatCount="indefinite"/></rect>
+  <text x="60" y="109" textAnchor="middle" fontSize="7" fontWeight="600" fill="#34d399">Writer</text>
+  <text x="140" y="29" fontSize="6" fill="#3b82f6">writes →</text>
+  <text x="140" y="67" fontSize="6" fill="#fbbf24">read/write →</text>
+  <text x="140" y="105" fontSize="6" fill="#34d399">reads →</text>
+  <circle r="3" fill="#3b82f6"><animateMotion dur="2s" repeatCount="indefinite" path="M102,29 L178,40"/></circle>
+  <circle r="3" fill="#fbbf24"><animateMotion dur="2.2s" repeatCount="indefinite" path="M102,67 L178,55"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="2.5s" repeatCount="indefinite" path="M102,105 L178,75"/></circle>
+  <rect x="380" y="40" width="100" height="40" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="2"/>
+  <text x="430" y="58" textAnchor="middle" fontSize="7" fontWeight="700" fill="#34d399">No direct calls</text>
+  <text x="430" y="71" textAnchor="middle" fontSize="6" fill="#6a6a80">board only</text>
+  <circle r="3" fill="#ec4899"><animateMotion dur="1.8s" repeatCount="indefinite" path="M322,55 L378,55"/></circle>
+  <text x="250" y="120" textAnchor="middle" fontSize="7" fill="#6a6a80">Agents never call each other — only read/write the shared blackboard</text>
+</svg>
+</div>
 
 Each agent:
 1. Checks the board for its trigger condition (e.g. "findings exist but no review yet")

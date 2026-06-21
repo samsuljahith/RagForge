@@ -4,6 +4,41 @@ sidebar_position: 2
 
 # Chunking
 
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="120" viewBox="0 0 550 120">
+  <rect x="10" y="30" width="70" height="55" rx="6" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="1.5"/>
+  <text x="45" y="48" textAnchor="middle" fontSize="7" fontWeight="600" fill="#ff6b2c">Document</text>
+  <rect x="18" y="55" width="54" height="8" rx="2" fill="#7c6ff8" opacity="0.3"/><text x="45" y="62" textAnchor="middle" fontSize="5" fill="#a78bfa"># Header</text>
+  <rect x="18" y="66" width="54" height="8" rx="2" fill="#34d399" opacity="0.3"/><text x="45" y="73" textAnchor="middle" fontSize="5" fill="#34d399">table</text>
+  <rect x="18" y="77" width="54" height="8" rx="2" fill="#22d3ee" opacity="0.3"/><text x="45" y="84" textAnchor="middle" fontSize="5" fill="#22d3ee">code</text>
+  <rect x="115" y="20" width="80" height="35" rx="8" fill="#1a1a24" stroke="#34d399" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="155" y="38" textAnchor="middle" fontSize="7" fontWeight="700" fill="#34d399">Structure</text>
+  <text x="155" y="49" textAnchor="middle" fontSize="6" fill="#6a6a80">context-first</text>
+  <rect x="115" y="65" width="80" height="35" rx="8" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1.5"/>
+  <text x="155" y="83" textAnchor="middle" fontSize="7" fontWeight="600" fill="#fbbf24">Fixed</text>
+  <text x="155" y="94" textAnchor="middle" fontSize="6" fill="#6a6a80">sliding window</text>
+  <rect x="240" y="10" width="100" height="28" rx="5" fill="#1a1a24" stroke="#34d399" strokeWidth="1.5"><animate attributeName="opacity" values="1;0.6;1" dur="2.5s" repeatCount="indefinite"/></rect>
+  <text x="290" y="24" textAnchor="middle" fontSize="6" fontWeight="600" fill="#34d399">Chunk 1 [Header]</text>
+  <text x="290" y="33" textAnchor="middle" fontSize="5" fill="#6a6a80">paragraph ✓</text>
+  <rect x="240" y="44" width="100" height="28" rx="5" fill="#1a1a24" stroke="#34d399" strokeWidth="1.5"><animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite"/></rect>
+  <text x="290" y="58" textAnchor="middle" fontSize="6" fontWeight="600" fill="#34d399">Chunk 2 [Section]</text>
+  <text x="290" y="67" textAnchor="middle" fontSize="5" fill="#6a6a80">TABLE intact ✓</text>
+  <rect x="240" y="78" width="100" height="28" rx="5" fill="#1a1a24" stroke="#34d399" strokeWidth="1.5"><animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="290" y="92" textAnchor="middle" fontSize="6" fontWeight="600" fill="#34d399">Chunk 3 [Section]</text>
+  <text x="290" y="101" textAnchor="middle" fontSize="5" fill="#6a6a80">CODE intact ✓</text>
+  <rect x="380" y="35" width="90" height="45" rx="8" fill="#1a1a24" stroke="#7c6ff8" strokeWidth="2"/>
+  <text x="425" y="53" textAnchor="middle" fontSize="7" fontWeight="700" fill="#7c6ff8">Each chunk</text>
+  <text x="425" y="65" textAnchor="middle" fontSize="6" fill="#a78bfa">tagged with section</text>
+  <text x="425" y="75" textAnchor="middle" fontSize="6" fill="#6a6a80">+ token count</text>
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.5s" repeatCount="indefinite" path="M82,55 L113,37"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.5s" repeatCount="indefinite" path="M197,37 L238,24"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.8s" repeatCount="indefinite" path="M197,37 L238,58"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="2s" repeatCount="indefinite" path="M197,37 L238,92"/></circle>
+  <circle r="3" fill="#7c6ff8"><animateMotion dur="1.5s" repeatCount="indefinite" path="M342,55 L378,55"/></circle>
+  <text x="275" y="115" textAnchor="middle" fontSize="7" fill="#6a6a80">Document → analyze structure → split at boundaries → tagged chunks (tables/code never cut)</text>
+</svg>
+</div>
+
 Chunking matters more than model choice — that's the hard-won lesson from practitioners. RAGForge ships three strategies: a simple fixed-size baseline, a structure-aware chunker that keeps tables and code blocks intact, and an optional Docling-powered chunker for complex documents.
 
 ## Three Strategies

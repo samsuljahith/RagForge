@@ -4,6 +4,37 @@ sidebar_position: 4
 
 # Evaluating RAG Quality
 
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="110" viewBox="0 0 550 110">
+  <rect x="10" y="30" width="70" height="45" rx="6" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1.5"/>
+  <text x="45" y="48" textAnchor="middle" fontSize="7" fontWeight="600" fill="#fbbf24">Golden Set</text>
+  <text x="45" y="60" textAnchor="middle" fontSize="6" fill="#6a6a80">Q&amp;A pairs</text>
+  <text x="45" y="70" textAnchor="middle" fontSize="6" fill="#6a6a80">ground truth</text>
+  <rect x="110" y="15" width="60" height="30" rx="6" fill="#1a1a24" stroke="#3b82f6" strokeWidth="1.5"><animate attributeName="opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="140" y="34" textAnchor="middle" fontSize="7" fontWeight="600" fill="#3b82f6">Config A</text>
+  <rect x="110" y="55" width="60" height="30" rx="6" fill="#1a1a24" stroke="#ff6b2c" strokeWidth="1.5"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="140" y="74" textAnchor="middle" fontSize="7" fontWeight="600" fill="#ff6b2c">Config B</text>
+  <rect x="205" y="25" width="75" height="50" rx="8" fill="#1a1a24" stroke="#22d3ee" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.4;1" dur="1.8s" repeatCount="indefinite"/></rect>
+  <text x="242" y="47" textAnchor="middle" fontSize="8" fontWeight="700" fill="#22d3ee">Evaluate</text>
+  <text x="242" y="60" textAnchor="middle" fontSize="6" fill="#6a6a80">per question</text>
+  <text x="242" y="70" textAnchor="middle" fontSize="6" fill="#6a6a80">+ judge LLM</text>
+  <text x="315" y="25" fontSize="6" fill="#a0a0b8">hit_rate</text>
+  <rect x="350" y="19" width="80" height="7" rx="3" fill="#1a1a24" stroke="#2a2a34" strokeWidth="0.5"/><rect x="350" y="19" width="0" height="7" rx="3" fill="#34d399"><animate attributeName="width" from="0" to="68" dur="2s" repeatCount="indefinite"/></rect><text x="435" y="25" fontSize="6" fontWeight="700" fill="#34d399">85%</text>
+  <text x="315" y="40" fontSize="6" fill="#a0a0b8">MRR</text>
+  <rect x="350" y="34" width="80" height="7" rx="3" fill="#1a1a24" stroke="#2a2a34" strokeWidth="0.5"/><rect x="350" y="34" width="0" height="7" rx="3" fill="#7c6ff8"><animate attributeName="width" from="0" to="58" dur="2s" repeatCount="indefinite"/></rect><text x="435" y="40" fontSize="6" fontWeight="700" fill="#7c6ff8">73%</text>
+  <text x="315" y="55" fontSize="6" fill="#a0a0b8">precision@5</text>
+  <rect x="350" y="49" width="80" height="7" rx="3" fill="#1a1a24" stroke="#2a2a34" strokeWidth="0.5"/><rect x="350" y="49" width="0" height="7" rx="3" fill="#ff6b2c"><animate attributeName="width" from="0" to="50" dur="2s" repeatCount="indefinite"/></rect><text x="435" y="55" fontSize="6" fontWeight="700" fill="#ff6b2c">62%</text>
+  <text x="315" y="70" fontSize="6" fill="#a0a0b8">faithfulness</text>
+  <rect x="350" y="64" width="80" height="7" rx="3" fill="#1a1a24" stroke="#2a2a34" strokeWidth="0.5"/><rect x="350" y="64" width="0" height="7" rx="3" fill="#a78bfa"><animate attributeName="width" from="0" to="74" dur="2s" repeatCount="indefinite"/></rect><text x="435" y="70" fontSize="6" fontWeight="700" fill="#a78bfa">92%</text>
+  <text x="390" y="88" textAnchor="middle" fontSize="7" fontWeight="600" fill="#34d399">✓ Config A wins</text>
+  <circle r="3" fill="#fbbf24"><animateMotion dur="1.5s" repeatCount="indefinite" path="M82,52 L108,30"/></circle>
+  <circle r="3" fill="#3b82f6"><animateMotion dur="1.5s" repeatCount="indefinite" path="M172,30 L203,42"/></circle>
+  <circle r="3" fill="#ff6b2c"><animateMotion dur="1.8s" repeatCount="indefinite" path="M172,70 L203,55"/></circle>
+  <circle r="3" fill="#22d3ee"><animateMotion dur="1.5s" repeatCount="indefinite" path="M282,50 L313,35"/></circle>
+  <text x="275" y="105" textAnchor="middle" fontSize="7" fill="#6a6a80">Golden dataset → evaluate both configs → concrete metric bars → winner declared</text>
+</svg>
+</div>
+
 "No eval meant flying blind — half our improvements were regressions." The evaluation module gives you concrete numbers: did we find the right chunks? Is the generated answer faithful to the sources?
 
 ## Quick Start

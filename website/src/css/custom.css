@@ -60,7 +60,7 @@
   --ifm-color-primary-lighter: #ffa070;
   --ifm-color-primary-lightest: #ffc0a0;
   --ifm-background-color: #0a0a0f;
-  --ifm-background-surface-color: #111118;
+  --ifm-background-surface-color: #0a0a0f;
   --ifm-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --ifm-font-family-monospace: 'JetBrains Mono', 'SF Mono', monospace;
   --ifm-heading-font-weight: 800;
@@ -584,3 +584,31 @@ body {
   margin: 0 auto;
   line-height: 1.6;
 }
+
+/* ============================================================
+   DOCS FIXES — consistent dark background
+   ============================================================ */
+
+/* Make all doc surfaces the same dark color */
+.main-wrapper, article, .docMainContainer_node_modules, .container {
+  background: var(--rf-bg) !important;
+}
+
+/* Tables in docs */
+table { background: var(--rf-bg-card); border-radius: var(--rf-radius-sm); }
+table th { background: var(--rf-bg-muted) !important; color: var(--rf-text); }
+table td { border-color: var(--rf-border) !important; }
+
+/* Mermaid diagrams — force dark theme and no grey background */
+.docusaurus-mermaid-container {
+  background: transparent !important;
+}
+.docusaurus-mermaid-container svg {
+  background: transparent !important;
+}
+
+/* Admonitions */
+.alert { background: var(--rf-bg-card) !important; border-color: var(--rf-border) !important; }
+
+/* Sidebar */
+.menu { background: var(--rf-bg) !important; }

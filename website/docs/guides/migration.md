@@ -26,19 +26,43 @@ print(f"Quality after:  {result['quality_after']}")
 
 ## How It Works
 
-```mermaid
-flowchart TD
-    START[Start Migration] --> LOAD[Load existing KB]
-    LOAD --> SHADOW[Re-embed all chunks with new model]
-    SHADOW --> VAL{Validate quality?}
-    VAL -->|Yes| EVAL[Run evaluation comparison]
-    VAL -->|No| SWAP
-    EVAL --> CHECK{Quality acceptable?}
-    CHECK -->|Yes| SWAP[Swap indices]
-    CHECK -->|No| ABORT[Abort + keep old]
-    SWAP --> BACKUP[Old index becomes backup]
-    BACKUP --> DONE[Migration complete]
-```
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="130" viewBox="0 0 600 130">
+  <rect x="10" y="40" width="70" height="40" rx="6" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1.5"/>
+  <text x="45" y="58" textAnchor="middle" fontSize="7" fontWeight="600" fill="#fbbf24">Load KB</text>
+  <text x="45" y="70" textAnchor="middle" fontSize="6" fill="#6a6a80">existing</text>
+
+  <rect x="110" y="40" width="80" height="40" rx="6" fill="#1a1a24" stroke="#7c6ff8" strokeWidth="1.5"><animate attributeName="stroke-opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="150" y="56" textAnchor="middle" fontSize="7" fontWeight="600" fill="#7c6ff8">Shadow</text>
+  <text x="150" y="68" textAnchor="middle" fontSize="6" fill="#a78bfa">re-embed all</text>
+
+  <rect x="220" y="40" width="75" height="40" rx="6" fill="#1a1a24" stroke="#22d3ee" strokeWidth="1.5"/>
+  <text x="257" y="56" textAnchor="middle" fontSize="7" fontWeight="600" fill="#22d3ee">Validate</text>
+  <text x="257" y="68" textAnchor="middle" fontSize="6" fill="#6a6a80">quality OK?</text>
+
+  <rect x="325" y="15" width="60" height="30" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="2"><animate attributeName="stroke-opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite"/></rect>
+  <text x="355" y="34" textAnchor="middle" fontSize="7" fontWeight="700" fill="#34d399">Swap ✓</text>
+
+  <rect x="325" y="70" width="60" height="30" rx="6" fill="#1a1a24" stroke="#f87171" strokeWidth="1.5"/>
+  <text x="355" y="89" textAnchor="middle" fontSize="7" fontWeight="600" fill="#f87171">Abort ✗</text>
+
+  <rect x="420" y="15" width="65" height="30" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="1.5"/>
+  <text x="452" y="34" textAnchor="middle" fontSize="7" fontWeight="600" fill="#34d399">Backup</text>
+
+  <rect x="515" y="15" width="70" height="30" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="2"/>
+  <text x="550" y="34" textAnchor="middle" fontSize="7" fontWeight="700" fill="#34d399">Done ✓</text>
+
+  <text x="297" y="28" fontSize="6" fill="#34d399">yes →</text>
+  <text x="297" y="82" fontSize="6" fill="#f87171">no →</text>
+
+  <circle r="3" fill="#fbbf24"><animateMotion dur="1.5s" repeatCount="indefinite" path="M82,60 L108,60"/></circle>
+  <circle r="3" fill="#7c6ff8"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,60 L218,60"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.5s" repeatCount="indefinite" path="M387,30 L418,30"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.3s" repeatCount="indefinite" path="M487,30 L513,30"/></circle>
+
+  <text x="300" y="115" textAnchor="middle" fontSize="7" fill="#6a6a80">Old index stays live during migration. Auto-aborts if quality drops below threshold.</text>
+</svg>
+</div>
 
 1. **Load**: Read all chunks from the existing knowledge base
 2. **Shadow index**: Re-embed everything with the new model (builds alongside, doesn't touch the old)

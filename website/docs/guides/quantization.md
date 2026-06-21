@@ -4,6 +4,31 @@ sidebar_position: 5
 
 # Quantization & Cost/Quality Comparison
 
+<div style={{background: '#14141e', borderRadius: '14px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'}}>
+<svg width="100%" height="100" viewBox="0 0 550 100">
+  <rect x="10" y="25" width="80" height="50" rx="6" fill="#1a1a24" stroke="#fbbf24" strokeWidth="1.5"/>
+  <text x="50" y="43" textAnchor="middle" fontSize="7" fontWeight="600" fill="#fbbf24">float32</text>
+  <text x="50" y="55" textAnchor="middle" fontSize="6" fill="#6a6a80">512 bytes/vec</text>
+  <text x="50" y="67" textAnchor="middle" fontSize="6" fill="#fbbf24">quality: 1.00</text>
+  <rect x="130" y="30" width="70" height="40" rx="8" fill="#1a1a24" stroke="#a78bfa" strokeWidth="2"><animate attributeName="stroke-opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/></rect>
+  <text x="165" y="48" textAnchor="middle" fontSize="8" fontWeight="700" fill="#a78bfa">Quantize</text>
+  <text x="165" y="60" textAnchor="middle" fontSize="6" fill="#6a6a80">compress</text>
+  <rect x="240" y="25" width="80" height="50" rx="6" fill="#1a1a24" stroke="#34d399" strokeWidth="1.5"/>
+  <text x="280" y="43" textAnchor="middle" fontSize="7" fontWeight="600" fill="#34d399">int8</text>
+  <text x="280" y="55" textAnchor="middle" fontSize="6" fill="#6a6a80">128 bytes/vec</text>
+  <text x="280" y="67" textAnchor="middle" fontSize="6" fill="#34d399">quality: 0.98</text>
+  <rect x="360" y="20" width="110" height="60" rx="8" fill="#1a1a24" stroke="#34d399" strokeWidth="2"/>
+  <text x="415" y="38" textAnchor="middle" fontSize="7" fontWeight="700" fill="#34d399">Tradeoff Report</text>
+  <text x="415" y="52" textAnchor="middle" fontSize="6" fill="#34d399">4x smaller</text>
+  <text x="415" y="64" textAnchor="middle" fontSize="6" fill="#34d399">-2% quality</text>
+  <text x="415" y="76" textAnchor="middle" fontSize="6" fontWeight="600" fill="#fbbf24">on YOUR data</text>
+  <circle r="3" fill="#fbbf24"><animateMotion dur="1.5s" repeatCount="indefinite" path="M92,50 L128,50"/></circle>
+  <circle r="3" fill="#a78bfa"><animateMotion dur="1.5s" repeatCount="indefinite" path="M202,50 L238,50"/></circle>
+  <circle r="3" fill="#34d399"><animateMotion dur="1.3s" repeatCount="indefinite" path="M322,50 L358,50"/></circle>
+  <text x="275" y="95" textAnchor="middle" fontSize="7" fill="#6a6a80">Compress embeddings → measure real quality impact → decide with data, not guesses</text>
+</svg>
+</div>
+
 Quantization reduces embedding model size and cost. The key insight: savings are meaningless without measuring quality impact on YOUR data. This module quantizes and compares before vs after.
 
 ## Quick Start
