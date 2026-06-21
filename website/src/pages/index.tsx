@@ -1,11 +1,12 @@
 /**
- * RAGForge Homepage — Bright SaaS-style with interactive feature explorer.
+ * RAGForge Homepage — Mascot-centered bright SaaS landing page.
  *
  * Layout:
- *   1. Hero (tagline, install, buttons)
+ *   1. Hero (mascot + video background + sparks + tagline)
  *   2. Feature Explorer (left list + right interactive demo panel)
  *   3. "Any Language" code examples
- *   4. "What's Inside" overview grid linking to docs
+ *   4. "What's Inside" overview grid
+ *   5. Footer with small mascot accent
  */
 
 import React, {useState} from 'react';
@@ -14,30 +15,190 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import CodeBlock from '@theme/CodeBlock';
 import {featureDemos, FeatureDemo, MetricData, ChunkResult, TimelineStep} from '../data/featureDemos';
+import {flowMap} from '../components/AnimatedFlows';
+import {featureFlowMap} from '../components/FeatureFlows';
+import {
+  FileText, LayoutGrid, Search, MessageSquare, BarChart3,
+  Minimize2, Network, Activity, RefreshCw,
+} from 'lucide-react';
+
+// Map icon names to Lucide components
+const iconComponents: Record<string, React.FC<{size?: number; color?: string}>> = {
+  FileText, LayoutGrid, Search, MessageSquare, BarChart3,
+  Minimize2, Network, Activity, RefreshCw,
+};
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
 function Hero() {
   return (
     <section className="rf-hero">
+      {/* Background videos — both playing, crossfaded */}
+      <div className="rf-hero__video-wrap">
+        <video
+          className="rf-hero__video rf-hero__video--1"
+          autoPlay
+          loop
+          muted
+          playsInline
+          src="/videos/Vid1.mp4"
+        />
+        <video
+          className="rf-hero__video rf-hero__video--2"
+          autoPlay
+          loop
+          muted
+          playsInline
+          src="/videos/Vid2.mp4"
+        />
+        <div className="rf-hero__video-overlay" />
+      </div>
+
       <div className="rf-hero__content">
-        <h1 className="rf-hero__title rf-animate rf-animate--d1">
-          Build, evaluate, and<br/>optimize <em>RAG</em>
-        </h1>
-        <p className="rf-hero__subtitle rf-animate rf-animate--d2">
-          One toolkit for parsing, chunking, retrieval, evaluation, and multi-agent coordination — exposed as HTTP/JSON so any language can use it.
-        </p>
-        <div className="rf-install rf-animate rf-animate--d3" onClick={() => navigator.clipboard?.writeText('pip install ragforge')} role="button" tabIndex={0} aria-label="Copy install command">
-          <span className="rf-install__dollar">$</span>
-          <code>pip install ragforge</code>
+        {/* Left: text */}
+        <div className="rf-hero__text">
+          <h1 className="rf-hero__title rf-animate rf-animate--d1">
+            Build, evaluate &<br/>optimize <em>RAG</em>
+          </h1>
+          <p className="rf-hero__subtitle rf-animate rf-animate--d2">
+            One toolkit for parsing, chunking, retrieval, evaluation, and multi-agent coordination — exposed as HTTP/JSON so any language can use it.
+          </p>
+          <div className="rf-install rf-animate rf-animate--d3" onClick={() => navigator.clipboard?.writeText('pip install ragforge')} role="button" tabIndex={0} aria-label="Copy install command">
+            <span className="rf-install__dollar">$</span>
+            <code>pip install ragforge</code>
+          </div>
+          <div className="rf-btn-group rf-animate rf-animate--d4">
+            <Link className="rf-btn rf-btn--primary" to="/docs/getting-started/quickstart">
+              Get Started →
+            </Link>
+            <Link className="rf-btn rf-btn--ghost" href="https://github.com/samsuljahith/RagForge">
+              GitHub ↗
+            </Link>
+          </div>
         </div>
-        <div className="rf-btn-group rf-animate rf-animate--d4">
-          <Link className="rf-btn rf-btn--primary" to="/docs/getting-started/quickstart">
-            Get Started →
-          </Link>
-          <Link className="rf-btn rf-btn--ghost" href="https://github.com/samsuljahith/RagForge">
-            GitHub ↗
-          </Link>
+
+        {/* Right: mascot with sparks */}
+        <div className="rf-hero__mascot-wrap rf-animate rf-animate--d2">
+          <img
+            className="rf-hero__mascot"
+            src="/img/ragforge-mascot.png"
+            alt="RAGForge mascot — a cute robot blacksmith forging an AI cube"
+            width={280}
+            height={280}
+          />
+          <div className="rf-hero__sparks" aria-hidden="true">
+            <span className="rf-hero__spark" />
+            <span className="rf-hero__spark" />
+            <span className="rf-hero__spark" />
+            <span className="rf-hero__spark" />
+            <span className="rf-hero__spark" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Selling Points (Why RAGForge) ────────────────────────────────────────────
+
+const sellingPoints = [
+  {
+    id: 'any-language',
+    icon: '🌐',
+    title: 'Any Language, One API',
+    text: 'HTTP/JSON API so Python, JavaScript, Go, Rust, C++ agents all connect the same way. Your agent doesn\'t need to be Python.',
+    stat: '5+ languages',
+  },
+  {
+    id: 'zero-deps',
+    icon: '📦',
+    title: 'Zero Dependencies to Start',
+    text: 'Core install requires nothing — no numpy, no torch, no Docker. pip install ragforge and you\'re running in 2 seconds.',
+    stat: '0 deps',
+  },
+  {
+    id: 'tables-intact',
+    icon: '🧩',
+    title: 'Tables & Code Stay Intact',
+    text: 'Structure-aware chunking never cuts tables or code blocks in half — the #1 complaint about RAG on Reddit, solved.',
+    stat: '0 broken tables',
+  },
+  {
+    id: 'coordination',
+    icon: '💰',
+    title: 'Cheaper Multi-Agent Coordination',
+    text: 'Blackboard pattern means agents share state instead of re-sending full context on every handoff. Measurably fewer tokens.',
+    stat: '10-70% savings',
+  },
+  {
+    id: 'evaluation',
+    icon: '📊',
+    title: 'Prove Changes Help (Don\'t Guess)',
+    text: 'Built-in evaluation with A/B comparison. Know your precision, recall, and faithfulness before you ship — not after users complain.',
+    stat: '6 metrics built in',
+  },
+  {
+    id: 'grounded',
+    icon: '🛡️',
+    title: 'Grounded Answers, Not Hallucinations',
+    text: 'LLM generation cites its sources and refuses when evidence is insufficient. Your users get facts, not made-up answers.',
+    stat: 'Source citations',
+  },
+  {
+    id: 'model-swap',
+    icon: '🔄',
+    title: 'Swap Models Safely',
+    text: 'Migration module: shadow-indexes your new model, validates quality automatically, then does an atomic cutover. No downtime, no data loss.',
+    stat: 'Zero-downtime swap',
+  },
+  {
+    id: 'migration-scale',
+    icon: '🏗️',
+    title: 'Migrate Large-Scale RAG at Scale',
+    text: 'Re-embed millions of chunks across your entire knowledge base when upgrading models. Shadow indexing means your production system stays live the whole time.',
+    stat: 'Production-safe',
+  },
+  {
+    id: 'context-chunking',
+    icon: '🧠',
+    title: 'Chunk After Understanding Context',
+    text: 'Structure-aware chunking reads the document structure first — headers, sections, code fences, tables — then splits intelligently. Not blind character counting.',
+    stat: 'Context-aware splits',
+  },
+  {
+    id: 'one-tool',
+    icon: '⚡',
+    title: 'One Tool, Not Six',
+    text: 'Parsing, chunking, retrieval, evaluation, quantization, migration, coordination, tracing — all in one pip install with a unified CLI + API.',
+    stat: '9 modules',
+  },
+];
+
+function SellingPoints() {
+  return (
+    <section className="rf-selling">
+      <div className="container">
+        <div className="rf-explorer__header">
+          <div className="rf-explorer__label">Why RAGForge</div>
+          <h2 className="rf-explorer__title">Built for the pains developers actually have</h2>
+        </div>
+        <div className="rf-selling__grid">
+          {sellingPoints.map((sp, i) => {
+            const FlowComponent = flowMap[sp.id];
+            return (
+              <div key={i} className="rf-selling__card">
+                <div className="rf-selling__header">
+                  <div className="rf-selling__icon">{sp.icon}</div>
+                  <div className="rf-selling__content">
+                    <div className="rf-selling__title">{sp.title}</div>
+                    <div className="rf-selling__text">{sp.text}</div>
+                    <div className="rf-selling__stat">{sp.stat}</div>
+                  </div>
+                </div>
+                {FlowComponent && <FlowComponent />}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -63,27 +224,28 @@ function FeatureExplorer() {
         <h2 className="rf-explorer__title">See it in action</h2>
       </div>
       <div className="rf-explorer__layout">
-        {/* Left: feature list */}
         <nav className="rf-feature-list" aria-label="Feature list">
-          {featureDemos.map(f => (
-            <button
-              key={f.id}
-              className={`rf-feature-item ${activeId === f.id ? 'rf-feature-item--active' : ''}`}
-              onClick={() => handleSelect(f.id)}
-              aria-pressed={activeId === f.id}
-            >
-              <span
-                className="rf-feature-item__icon"
-                style={{background: `${f.color}15`}}
+          {featureDemos.map(f => {
+            const IconComp = iconComponents[f.icon];
+            return (
+              <button
+                key={f.id}
+                className={`rf-feature-item ${activeId === f.id ? 'rf-feature-item--active' : ''}`}
+                onClick={() => handleSelect(f.id)}
+                aria-pressed={activeId === f.id}
               >
-                {f.icon}
-              </span>
-              {f.name}
-            </button>
-          ))}
+                <span
+                  className="rf-feature-item__icon"
+                  style={{background: `${f.color}12`}}
+                >
+                  {IconComp ? <IconComp size={16} color={f.color} /> : f.icon}
+                </span>
+                {f.name}
+              </button>
+            );
+          })}
         </nav>
 
-        {/* Right: demo panel */}
         <DemoPanel feature={active} variantIdx={variantIdx} setVariantIdx={setVariantIdx} />
       </div>
     </section>
@@ -96,12 +258,15 @@ function DemoPanel({feature, variantIdx, setVariantIdx}: {
   setVariantIdx: (i: number) => void;
 }) {
   const variant = feature.variants[variantIdx] || feature.variants[0];
+  const FlowComponent = featureFlowMap[feature.id];
 
   return (
     <div className="rf-demo-panel">
       <p className="rf-demo-panel__desc">{feature.description}</p>
 
-      {/* Input */}
+      {/* Animated flow diagram */}
+      {FlowComponent && <FlowComponent />}
+
       {feature.input && (
         <div className="rf-demo-panel__section">
           <div className="rf-demo-panel__section-label">Input</div>
@@ -109,7 +274,6 @@ function DemoPanel({feature, variantIdx, setVariantIdx}: {
         </div>
       )}
 
-      {/* Config toggle */}
       {feature.variants.length > 1 && (
         <div className="rf-demo-toggle">
           {feature.variants.map((v, i) => (
@@ -124,7 +288,6 @@ function DemoPanel({feature, variantIdx, setVariantIdx}: {
         </div>
       )}
 
-      {/* Output */}
       <div className="rf-demo-panel__section">
         <div className="rf-demo-panel__section-label">Output</div>
         <DemoOutput variant={variant} />
@@ -193,6 +356,98 @@ function DemoOutput({variant}: {variant: any}) {
   return <div className="rf-demo-panel__output">{String(variant.output)}</div>;
 }
 
+// ─── Architecture Visual ──────────────────────────────────────────────────────
+
+function Architecture() {
+  return (
+    <section className="rf-architecture">
+      <div className="container">
+        <div className="rf-explorer__header">
+          <div className="rf-explorer__label">How it works</div>
+          <h2 className="rf-explorer__title">Architecture</h2>
+        </div>
+        <div className="rf-arch__flow">
+          {/* Visual pipeline flow */}
+          <div className="rf-arch__row">
+            <div className="rf-arch__node rf-arch__node--source">
+              <div className="rf-arch__node-icon">📄</div>
+              <div className="rf-arch__node-label">Source Files</div>
+              <div className="rf-arch__node-sub">PDF, MD, HTML, DOCX</div>
+            </div>
+            <div className="rf-arch__arrow">→</div>
+            <div className="rf-arch__node rf-arch__node--parse">
+              <div className="rf-arch__node-icon">⚡</div>
+              <div className="rf-arch__node-label">Parsing</div>
+              <div className="rf-arch__node-sub">Clean text extraction</div>
+            </div>
+            <div className="rf-arch__arrow">→</div>
+            <div className="rf-arch__node rf-arch__node--chunk">
+              <div className="rf-arch__node-icon">🧩</div>
+              <div className="rf-arch__node-label">Chunking</div>
+              <div className="rf-arch__node-sub">Structure-aware splits</div>
+            </div>
+            <div className="rf-arch__arrow">→</div>
+            <div className="rf-arch__node rf-arch__node--embed">
+              <div className="rf-arch__node-icon">🔍</div>
+              <div className="rf-arch__node-label">Embed + Store</div>
+              <div className="rf-arch__node-sub">Vectors + BM25 index</div>
+            </div>
+          </div>
+
+          <div className="rf-arch__divider">
+            <span className="rf-arch__divider-text">Query Time</span>
+          </div>
+
+          <div className="rf-arch__row">
+            <div className="rf-arch__node rf-arch__node--query">
+              <div className="rf-arch__node-icon">❓</div>
+              <div className="rf-arch__node-label">Question</div>
+              <div className="rf-arch__node-sub">From any language</div>
+            </div>
+            <div className="rf-arch__arrow">→</div>
+            <div className="rf-arch__node rf-arch__node--search">
+              <div className="rf-arch__node-icon">🔎</div>
+              <div className="rf-arch__node-label">Hybrid Search</div>
+              <div className="rf-arch__node-sub">Dense + BM25 + RRF</div>
+            </div>
+            <div className="rf-arch__arrow">→</div>
+            <div className="rf-arch__node rf-arch__node--rerank">
+              <div className="rf-arch__node-icon">🎯</div>
+              <div className="rf-arch__node-label">Rerank</div>
+              <div className="rf-arch__node-sub">Cross-encoder precision</div>
+            </div>
+            <div className="rf-arch__arrow">→</div>
+            <div className="rf-arch__node rf-arch__node--answer">
+              <div className="rf-arch__node-icon">💬</div>
+              <div className="rf-arch__node-label">Answer</div>
+              <div className="rf-arch__node-sub">Grounded + cited</div>
+            </div>
+          </div>
+
+          {/* Bottom: supporting modules */}
+          <div className="rf-arch__support">
+            <div className="rf-arch__support-item">
+              <span>📊</span> Evaluation
+            </div>
+            <div className="rf-arch__support-item">
+              <span>📦</span> Quantization
+            </div>
+            <div className="rf-arch__support-item">
+              <span>🔄</span> Migration
+            </div>
+            <div className="rf-arch__support-item">
+              <span>🤖</span> Coordination
+            </div>
+            <div className="rf-arch__support-item">
+              <span>👁️</span> Tracing
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Any Language ─────────────────────────────────────────────────────────────
 
 function AnyLanguage() {
@@ -200,7 +455,6 @@ function AnyLanguage() {
 resp = requests.post("http://localhost:8000/query", json={
     "knowledge": "my-kb",
     "question": "How do refunds work?",
-    "mode": "hybrid", "top_k": 5,
     "generate": True, "llm": "ollama",
 })
 print(resp.json()["answer"])`;
@@ -211,7 +465,6 @@ print(resp.json()["answer"])`;
   body: JSON.stringify({
     knowledge: "my-kb",
     question: "How do refunds work?",
-    mode: "hybrid", top_k: 5,
     generate: true, llm: "ollama",
   }),
 });
@@ -264,15 +517,15 @@ const { answer, chunks } = await resp.json();`;
   );
 }
 
-// ─── What's Inside (overview grid) ───────────────────────────────────────────
+// ─── What's Inside ────────────────────────────────────────────────────────────
 
 const overviewItems = [
-  { title: 'Quickstart', desc: 'Up and running in 5 minutes — CLI, Python, and API.', link: '/docs/getting-started/quickstart' },
-  { title: 'Architecture', desc: 'How modules connect. Plugin registry, shared core.', link: '/docs/core-concepts/architecture' },
+  { title: 'Quickstart', desc: 'CLI, Python library, and API — up and running in 5 minutes.', link: '/docs/getting-started/quickstart' },
+  { title: 'Architecture', desc: 'How modules connect via the plugin registry.', link: '/docs/core-concepts/architecture' },
   { title: 'Pipeline & Answers', desc: 'Embed, retrieve, rerank, generate grounded answers.', link: '/docs/guides/pipeline' },
-  { title: 'Evaluation', desc: 'Measure retrieval quality. A/B compare configs.', link: '/docs/guides/evaluation' },
+  { title: 'Evaluation', desc: 'Concrete metrics. A/B compare. Prove changes help.', link: '/docs/guides/evaluation' },
   { title: 'Multi-Agent Coordination', desc: 'Blackboard-based agents. Cheaper than direct messaging.', link: '/docs/guides/coordination' },
-  { title: 'HTTP API Reference', desc: 'Every endpoint documented with request/response examples.', link: '/docs/reference/http-api' },
+  { title: 'HTTP API Reference', desc: 'Every endpoint with request/response examples.', link: '/docs/reference/http-api' },
 ];
 
 function WhatsInside() {
@@ -280,6 +533,7 @@ function WhatsInside() {
     <section className="rf-overview">
       <div className="container">
         <div className="rf-explorer__header">
+          <img src="/img/ragforge-mascot.png" alt="" width={40} height={40} style={{marginBottom: '0.5rem', opacity: 0.7}} />
           <div className="rf-explorer__label">Documentation</div>
           <h2 className="rf-explorer__title">What's inside</h2>
         </div>
@@ -305,7 +559,9 @@ export default function Home(): React.JSX.Element {
     <Layout title="RAGForge" description={siteConfig.tagline}>
       <main>
         <Hero />
+        <SellingPoints />
         <FeatureExplorer />
+        <Architecture />
         <AnyLanguage />
         <WhatsInside />
       </main>

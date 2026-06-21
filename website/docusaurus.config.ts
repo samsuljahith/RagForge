@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'RAGForge',
   tagline: 'One workshop for building, evaluating, and optimizing RAG — usable from any language',
-  favicon: 'img/favicon.svg',
+  favicon: 'img/ragforge-mascot.png',
 
   url: 'https://rag-forge-o1d8.vercel.app',
   baseUrl: '/',
@@ -46,11 +46,17 @@ const config: Config = {
   themeConfig: {
     colorMode: {
       defaultMode: 'light',
-      disableSwitch: false,
-      respectPrefersColorScheme: true,
+      disableSwitch: true,
+      respectPrefersColorScheme: false,
     },
     navbar: {
-      title: '⚒ RAGForge',
+      title: 'RAGForge',
+      logo: {
+        alt: 'RAGForge mascot',
+        src: 'img/ragforge-mascot.png',
+        width: 32,
+        height: 32,
+      },
       items: [
         {
           type: 'docSidebar',
