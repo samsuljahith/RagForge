@@ -7,5 +7,6 @@ from ragforge.parsing.text_parser import (
     TextParser,
     parse_file,
 )
+from ragforge.parsing.docling_parser import DoclingParser
 
-__all__ = ["TextParser", "HtmlParser", "PdfParser", "parse_file"]
+__all__ = ["TextParser", "HtmlParser", "PdfParser", "DoclingParser", "parse_file"]

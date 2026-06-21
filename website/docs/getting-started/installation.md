@@ -22,8 +22,11 @@ Install only what you need:
 # API server (FastAPI + Uvicorn)
 pip install ragforge[api]
 
-# PDF parsing support
+# PDF parsing support (lightweight)
 pip install ragforge[pdf]
+
+# Docling backend (advanced parsing for complex PDFs, DOCX, PPTX, images)
+pip install ragforge[docling]
 
 # Everything
 pip install ragforge[all]
@@ -34,10 +37,15 @@ pip install ragforge[all]
 | Extra | What it adds | Dependencies |
 |-------|-------------|--------------|
 | `[api]` | HTTP/JSON API server, interactive docs | FastAPI, Uvicorn, Pydantic |
-| `[pdf]` | PDF file parsing | pypdf |
+| `[pdf]` | PDF file parsing (lightweight) | pypdf |
+| `[docling]` | Advanced parsing for complex docs (PDFs with tables, DOCX, PPTX, images) | docling |
 | `[pipeline]` | Production embedding models | sentence-transformers |
 | `[all]` | All of the above | Everything |
 | `[dev]` | Development tools | pytest, httpx, ruff |
+
+:::tip
+**Which PDF option?** Use `[pdf]` for simple text-only PDFs (fast, tiny install). Use `[docling]` for complex PDFs with tables, multi-column layouts, or when you need page-level metadata and OCR.
+:::
 
 ## Development Install
 

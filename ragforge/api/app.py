@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
     from ragforge.api.routes import health, parse, chunk, capabilities
     from ragforge.api.routes import knowledge, query, evaluate, quantize, migrate
     from ragforge.api.routes import traces, ui_eval, ui_chat
+    from ragforge.api.routes import coordination
 
     application.include_router(health.router)
     application.include_router(capabilities.router)
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     application.include_router(traces.router)
     application.include_router(ui_eval.router)
     application.include_router(ui_chat.router)
+    application.include_router(coordination.router)
 
     return application
 

@@ -22,6 +22,10 @@ class ParseRequest(BaseModel):
     text: Optional[str] = Field(None, description="Raw text content to wrap as a Document")
     doc_type: str = Field("txt", description="Document type hint when using raw text (txt, md, html)")
     source: str = Field("api-input", description="Source label when using raw text")
+    parser: Optional[str] = Field(
+        None,
+        description="Parser backend to use: 'text', 'html', 'pdf', 'docling'. Default: auto-detect by extension.",
+    )
 
 
 class DocumentResponse(BaseModel):
@@ -42,6 +46,9 @@ def parse_document(req: ParseRequest) -> DocumentResponse:
 
     Provide `path` to parse a server-side file (auto-detects format by extension),
     or `text` to wrap raw content as a Document directly.
+
+    Optionally specify `parser` to choose a backend: 'text', 'html', 'pdf', 'docling'.
+    Default auto-detects by file extension.
     """
     if not req.path and not req.text:
         raise HTTPException(status_code=400, detail="Provide either 'path' or 'text'")
@@ -51,7 +58,15 @@ def parse_document(req: ParseRequest) -> DocumentResponse:
         if not p.exists():
             raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
         try:
-            doc = parse_file(req.path)
+            if req.parser:
+                from ragforge.core.registry import get
+
+                parser_cls = get("parser", req.parser)
+                doc = parser_cls().parse(req.path)
+            else:
+                doc = parse_file(req.path)
+        except KeyError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except ImportError as e:
@@ -75,11 +90,14 @@ def parse_document(req: ParseRequest) -> DocumentResponse:
                 doc_type=req.doc_type,
             )
 
+    # Strip non-serializable internal objects from metadata
+    response_metadata = {k: v for k, v in doc.metadata.items() if not k.startswith("_")}
+
     return DocumentResponse(
         id=doc.id,
         text=doc.text,
         source=doc.source,
         doc_type=doc.doc_type,
-        metadata=doc.metadata,
+        metadata=response_metadata,
         token_count=doc.token_count,
     )

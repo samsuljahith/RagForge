@@ -41,19 +41,34 @@ def _cmd_info(args: argparse.Namespace) -> int:
     print("  evaluation    ✓  precision / recall / faithfulness")
     print("  quantization  ✓  quantize + compare cost/quality")
     print("  migration     ✓  re-embed + validate + swap models")
+    print("  coordination  ✓  multi-agent blackboard + cost benchmark")
     print("  api           ✓  HTTP/JSON API (ragforge serve)")
     return 0
 
 
 def _cmd_parse(args: argparse.Namespace) -> int:
     """Parse a file into clean text."""
-    doc = parse_file(args.path)
+    if args.parser:
+        # Use a specific parser backend by name (e.g. "docling")
+        from ragforge.core.registry import get
+
+        parser_cls = get("parser", args.parser)
+        parser_instance = parser_cls()
+        doc = parser_instance.parse(args.path)
+    else:
+        doc = parse_file(args.path)
+
     if args.json:
-        print(json.dumps(doc.to_dict(), indent=2))
+        # Remove non-serializable _docling_doc from JSON output
+        doc_dict = doc.to_dict()
+        doc_dict.get("metadata", {}).pop("_docling_doc", None)
+        print(json.dumps(doc_dict, indent=2))
     else:
         print(f"Parsed: {doc.source}")
         print(f"Type   : {doc.doc_type}")
         print(f"Tokens : ~{doc.token_count}")
+        if doc.metadata.get("parser"):
+            print(f"Parser : {doc.metadata['parser']}")
         print("-" * 50)
         preview = doc.text[: args.preview]
         print(preview + ("…" if len(doc.text) > args.preview else ""))
@@ -62,12 +77,21 @@ def _cmd_parse(args: argparse.Namespace) -> int:
 
 def _cmd_chunk(args: argparse.Namespace) -> int:
     """Parse then chunk a file."""
-    doc = parse_file(args.path)
+    if args.parser:
+        from ragforge.core.registry import get
+
+        parser_cls = get("parser", args.parser)
+        doc = parser_cls().parse(args.path)
+    else:
+        doc = parse_file(args.path)
+
     kwargs = {}
     if args.strategy == "structure" and args.max_tokens:
         kwargs["max_tokens"] = args.max_tokens
     if args.strategy == "fixed" and args.max_tokens:
         kwargs["chunk_tokens"] = args.max_tokens
+    if args.strategy == "docling" and args.max_tokens:
+        kwargs["max_tokens"] = args.max_tokens
     chunks = chunk_document(doc, strategy=args.strategy, **kwargs)
 
     if args.json:
@@ -303,6 +327,141 @@ def _cmd_ui(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_agents_run(args: argparse.Namespace) -> int:
+    """Run a multi-agent task from a config file."""
+    from ragforge.coordination import Blackboard, InMemoryBlackboard
+    from ragforge.coordination.agent import Orchestrator
+    from pathlib import Path
+    import importlib.util
+
+    config_path = Path(args.config)
+    if not config_path.exists():
+        print(f"Error: Config file not found: {config_path}", file=sys.stderr)
+        return 1
+
+    # Load the config module (a Python file that defines agents, goal, etc.)
+    spec = importlib.util.spec_from_file_location("agent_config", str(config_path))
+    config_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config_mod)
+
+    # The config module must define: agents (list), and optionally: goal, max_steps, board_name
+    if not hasattr(config_mod, "agents"):
+        print("Error: Config must define 'agents' (a list of Agent instances).", file=sys.stderr)
+        return 1
+
+    agents = config_mod.agents
+    goal = getattr(config_mod, "goal", None)
+    max_steps = getattr(config_mod, "max_steps", args.max_steps)
+    board_name = getattr(config_mod, "board_name", "cli-run")
+
+    # Create board (persistent or in-memory)
+    if args.persist:
+        board = Blackboard(board_name)
+    else:
+        board = InMemoryBlackboard(board_name)
+
+    # Seed the board if config provides initial entries
+    if hasattr(config_mod, "seed"):
+        for entry in config_mod.seed:
+            board.write(entry["key"], entry["value"], author=entry.get("author", "seed"),
+                        tags=entry.get("tags", {}))
+
+    # Run orchestration
+    orch = Orchestrator(board, agents, goal=goal, max_steps=max_steps)
+    result = orch.run()
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(f"Coordination run complete.")
+        print(f"  Steps:       {len(result.steps)}")
+        print(f"  Tokens:      {result.total_tokens:,}")
+        print(f"  Cost:        ${result.total_cost_usd:.4f}")
+        print(f"  Terminated:  {result.termination_reason}")
+        print(f"  Duration:    {result.total_duration_ms:.0f}ms")
+        if result.steps:
+            print(f"\n  Agent timeline:")
+            for i, step in enumerate(result.steps):
+                tok = f" ({step.tokens_used} tok)" if step.tokens_used else ""
+                print(f"    [{i}] {step.agent_id}: wrote {step.entries_written}{tok}")
+        print(f"\n  Board keys: {list(board.keys())}")
+
+    if not isinstance(board, InMemoryBlackboard):
+        board.close()
+    return 0
+
+
+def _cmd_agents_benchmark(args: argparse.Namespace) -> int:
+    """Run a direct-vs-blackboard cost comparison from a config file."""
+    from ragforge.coordination.benchmark import run_benchmark, BenchmarkTask
+    from pathlib import Path
+    import importlib.util
+
+    config_path = Path(args.config)
+    if not config_path.exists():
+        print(f"Error: Config file not found: {config_path}", file=sys.stderr)
+        return 1
+
+    # Load the config module (must define a BenchmarkTask or the pieces to build one)
+    spec = importlib.util.spec_from_file_location("benchmark_config", str(config_path))
+    config_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config_mod)
+
+    # Config can provide either a full BenchmarkTask or the pieces
+    if hasattr(config_mod, "benchmark_task"):
+        task = config_mod.benchmark_task
+    elif hasattr(config_mod, "agents") and hasattr(config_mod, "simulate_direct"):
+        task = BenchmarkTask(
+            description=getattr(config_mod, "description", "CLI benchmark"),
+            agents=config_mod.agents,
+            goal=getattr(config_mod, "goal", lambda b: False),
+            simulate_direct=config_mod.simulate_direct,
+            max_steps=getattr(config_mod, "max_steps", args.max_steps),
+        )
+    else:
+        print(
+            "Error: Config must define either 'benchmark_task' (a BenchmarkTask) or "
+            "both 'agents' and 'simulate_direct'.",
+            file=sys.stderr,
+        )
+        return 1
+
+    result = run_benchmark(task)
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(result.summary())
+    return 0
+
+
+def _cmd_agents_board(args: argparse.Namespace) -> int:
+    """Inspect a blackboard's current state."""
+    from ragforge.coordination import Blackboard
+
+    board = Blackboard(args.name)
+    entries = board.read_all()
+
+    if args.json:
+        print(json.dumps(board.to_dict(), indent=2))
+    else:
+        print(f"Blackboard: {args.name}")
+        print(f"Entries: {len(entries)}  |  History: {board.history_count()} writes")
+        print()
+        if entries:
+            for e in entries:
+                tags_str = f"  tags={e.tags}" if e.tags else ""
+                val_preview = str(e.value)[:80]
+                print(f"  [{e.key}] v{e.version} by {e.author}{tags_str}")
+                print(f"    {val_preview}")
+                print()
+        else:
+            print("  (empty)")
+
+    board.close()
+    return 0
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     """Start the HTTP/JSON API server."""
     try:
@@ -337,6 +496,11 @@ def build_parser() -> argparse.ArgumentParser:
     # --- parse ---
     sp = sub.add_parser("parse", help="parse a file into clean text")
     sp.add_argument("path", help="file to parse (.txt .md .html .pdf)")
+    sp.add_argument(
+        "--parser",
+        default=None,
+        help="parser backend: 'text', 'html', 'pdf', 'docling' (default: auto-detect by extension)",
+    )
     sp.add_argument("--preview", type=int, default=500, help="characters of text to show")
     sp.add_argument("--json", action="store_true", help="output as JSON")
     sp.set_defaults(func=_cmd_parse)
@@ -344,7 +508,12 @@ def build_parser() -> argparse.ArgumentParser:
     # --- chunk ---
     sp = sub.add_parser("chunk", help="parse then chunk a file")
     sp.add_argument("path", help="file to chunk")
-    sp.add_argument("--strategy", choices=["fixed", "structure"], default="structure")
+    sp.add_argument(
+        "--parser",
+        default=None,
+        help="parser backend: 'text', 'html', 'pdf', 'docling' (default: auto-detect by extension)",
+    )
+    sp.add_argument("--strategy", choices=["fixed", "structure", "docling"], default="structure")
     sp.add_argument("--max-tokens", type=int, default=None, help="target chunk size in tokens")
     sp.add_argument("--show-text", action="store_true", help="print each chunk's text")
     sp.add_argument("--json", action="store_true", help="output as JSON")
@@ -358,7 +527,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp = kb_sub.add_parser("build", help="build a knowledge base from files")
     sp.add_argument("name", help="name for the knowledge base")
     sp.add_argument("sources", nargs="+", help="files or directories to index")
-    sp.add_argument("--strategy", choices=["fixed", "structure"], default="structure")
+    sp.add_argument("--strategy", choices=["fixed", "structure", "docling"], default="structure")
+    sp.add_argument(
+        "--parser",
+        default=None,
+        help="parser backend: 'text', 'html', 'pdf', 'docling' (default: auto-detect by extension)",
+    )
     sp.add_argument(
         "--embedder",
         default="default",
@@ -437,6 +611,31 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("-n", type=int, default=10, help="number of items to generate")
     sp.add_argument("--llm", default="ollama", help="LLM provider for generation")
     sp.set_defaults(func=_cmd_eval_bootstrap)
+
+    # --- agents ---
+    agents_parser = sub.add_parser("agents", help="multi-agent coordination via blackboard")
+    agents_sub = agents_parser.add_subparsers(dest="agents_command", required=True)
+
+    # agents run
+    sp = agents_sub.add_parser("run", help="run a multi-agent task from a config file")
+    sp.add_argument("config", help="path to agent config (.py file defining agents + goal)")
+    sp.add_argument("--max-steps", type=int, default=50, help="max orchestration steps (default: 50)")
+    sp.add_argument("--persist", action="store_true", help="persist blackboard to disk (survives crashes)")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_agents_run)
+
+    # agents benchmark
+    sp = agents_sub.add_parser("benchmark", help="compare direct-messaging vs blackboard cost")
+    sp.add_argument("config", help="path to benchmark config (.py file defining task)")
+    sp.add_argument("--max-steps", type=int, default=50, help="max orchestration steps (default: 50)")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_agents_benchmark)
+
+    # agents board
+    sp = agents_sub.add_parser("board", help="inspect a persisted blackboard")
+    sp.add_argument("name", help="blackboard name")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_agents_board)
 
     # --- serve ---
     sp = sub.add_parser("serve", help="start the HTTP/JSON API server")

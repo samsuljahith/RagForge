@@ -49,12 +49,16 @@ api = [
 ]
 # PDF parsing
 pdf = ["pypdf>=4.0"]
+# Docling (high-quality parsing + chunking for complex documents)
+docling = ["docling>=2.0.0"]
 # Evaluation
 eval = []
 # Quantization
 quantization = []
 # Migration
 migration = []
+# Coordination (multi-agent blackboard — zero extra deps, uses stdlib sqlite3)
+coordination = []
 # UI dashboard (web interface served by ragforge ui)
 ui = [
     "ragforge[api]",
@@ -64,6 +68,7 @@ ui = [
 all = [
     "ragforge[api]",
     "ragforge[pdf]",
+    "ragforge[docling]",
     "ragforge[pipeline]",
     "ragforge[openai]",
     "ragforge[anthropic]",
