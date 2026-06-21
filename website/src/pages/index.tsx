@@ -33,7 +33,7 @@ const iconComponents: Record<string, React.FC<{size?: number; color?: string}>> 
 function Hero() {
   return (
     <section className="rf-hero">
-      {/* Background videos — both playing, crossfaded */}
+      {/* Background video — Vid1 fight scene */}
       <div className="rf-hero__video-wrap">
         <video
           className="rf-hero__video rf-hero__video--1"
@@ -42,14 +42,6 @@ function Hero() {
           muted
           playsInline
           src="/videos/Vid1.mp4"
-        />
-        <video
-          className="rf-hero__video rf-hero__video--2"
-          autoPlay
-          loop
-          muted
-          playsInline
-          src="/videos/Vid2.mp4"
         />
         <div className="rf-hero__video-overlay" />
       </div>
@@ -448,6 +440,32 @@ function Architecture() {
   );
 }
 
+// ─── Vid2 Section (between architecture and any-language) ────────────────────
+
+function Vid2Section() {
+  return (
+    <section className="rf-vid2-section">
+      <div className="rf-vid2-section__video-wrap">
+        <video
+          className="rf-vid2-section__video"
+          autoPlay
+          loop
+          muted
+          playsInline
+          src="/videos/Vid2.mp4"
+        />
+        <div className="rf-vid2-section__overlay" />
+      </div>
+      <div className="rf-vid2-section__content">
+        <h2 className="rf-vid2-section__title">Forge your RAG pipeline</h2>
+        <p className="rf-vid2-section__text">
+          From raw documents to grounded answers — every step observable, measurable, and controllable. One tool, one API, any language.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Any Language ─────────────────────────────────────────────────────────────
 
 function AnyLanguage() {
@@ -533,7 +551,6 @@ function WhatsInside() {
     <section className="rf-overview">
       <div className="container">
         <div className="rf-explorer__header">
-          <img src="/img/ragforge-mascot.png" alt="" width={40} height={40} style={{marginBottom: '0.5rem', opacity: 0.7}} />
           <div className="rf-explorer__label">Documentation</div>
           <h2 className="rf-explorer__title">What's inside</h2>
         </div>
@@ -562,6 +579,7 @@ export default function Home(): React.JSX.Element {
         <SellingPoints />
         <FeatureExplorer />
         <Architecture />
+        <Vid2Section />
         <AnyLanguage />
         <WhatsInside />
       </main>
