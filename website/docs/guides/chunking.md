@@ -4,9 +4,9 @@ sidebar_position: 2
 
 # Chunking
 
-Chunking matters more than model choice — that's the hard-won lesson from practitioners. RAGForge ships two strategies: a simple fixed-size baseline and a structure-aware chunker that keeps tables and code blocks intact.
+Chunking matters more than model choice — that's the hard-won lesson from practitioners. RAGForge ships three strategies: a simple fixed-size baseline, a structure-aware chunker that keeps tables and code blocks intact, and an optional Docling-powered chunker for complex documents.
 
-## Two Strategies
+## Three Strategies
 
 ### Fixed (Sliding Window)
 
@@ -32,6 +32,33 @@ chunks = chunk_document(doc, strategy="structure", max_tokens=384)
 - **Good for**: markdown docs, knowledge bases, anything with structure
 - **Keeps intact**: code blocks, tables, lists within a section
 - **Tags**: each chunk has `metadata["section"]` showing where it came from
+
+### Docling (Optional)
+
+Uses IBM's Docling library for layout-aware chunking of complex documents. Best paired with the Docling parser, which gives it the full structured document.
+
+```bash
+pip install ragforge[docling]
+```
+
+```python
+from ragforge.chunking import chunk_document
+
+# Best when document was parsed by DoclingParser (has _docling_doc in metadata)
+chunks = chunk_document(doc, strategy="docling", max_tokens=512)
+```
+
+- **Good for**: PDFs with tables, DOCX/PPTX, scanned images
+- **Requires**: `pip install ragforge[docling]`
+- **Best combo**: use `--parser docling --strategy docling` together
+
+```bash
+ragforge chunk report.pdf --parser docling --strategy docling --show-text
+```
+
+:::note
+If you use the docling chunker on a document parsed by the default parser, it falls back to the structure chunker with a warning. For best results, pair docling parser + docling chunker.
+:::
 
 ## Before/After Comparison
 
@@ -79,6 +106,12 @@ ragforge chunk document.md --strategy structure --show-text
 
 # Fixed with custom size
 ragforge chunk document.md --strategy fixed --max-tokens 256
+
+# Docling (for complex PDFs/DOCX)
+ragforge chunk report.pdf --parser docling --strategy docling --show-text
+
+# Choose a specific parser backend
+ragforge chunk report.pdf --parser docling --strategy structure
 
 # JSON output for scripting
 ragforge chunk document.md --json

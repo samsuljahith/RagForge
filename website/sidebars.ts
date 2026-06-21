@@ -30,6 +30,8 @@ const sidebars: SidebarsConfig = {
         'guides/evaluation',
         'guides/quantization',
         'guides/migration',
+        'guides/ui',
+        'guides/coordination',
       ],
     },
     {

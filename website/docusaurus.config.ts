@@ -45,9 +45,9 @@ const config: Config = {
 
   themeConfig: {
     colorMode: {
-      defaultMode: 'dark',
-      disableSwitch: true,
-      respectPrefersColorScheme: false,
+      defaultMode: 'light',
+      disableSwitch: false,
+      respectPrefersColorScheme: true,
     },
     navbar: {
       title: '⚒ RAGForge',
@@ -57,6 +57,11 @@ const config: Config = {
           sidebarId: 'docsSidebar',
           position: 'left',
           label: 'Docs',
+        },
+        {
+          to: '/docs/guides/pipeline',
+          label: 'Features',
+          position: 'left',
         },
         {
           to: '/docs/reference/http-api',
@@ -71,7 +76,7 @@ const config: Config = {
       ],
     },
     footer: {
-      style: 'dark',
+      style: 'light',
       links: [
         {
           title: 'Docs',

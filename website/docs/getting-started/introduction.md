@@ -33,16 +33,19 @@ RAGForge brings these tasks into one place — built as clean, independent modul
 
 ## What's Built
 
-| Module | Status | Description |
-|--------|--------|-------------|
-| Core | Available | Document/Chunk data models + plugin registry |
-| Parsing | Available | txt, md, html, pdf → Document |
-| Chunking | Available | Fixed + structure-aware → Chunks |
-| Pipeline | Available | Embed + store + hybrid search + rerank |
-| Evaluation | Available | Precision, recall, faithfulness metrics |
-| Quantization | Available | Quantize + compare cost/quality |
-| Migration | Available | Re-embed + validate + safe model swap |
-| API | Available | HTTP/JSON endpoints for all features |
+| Module | Description |
+|--------|-------------|
+| Core | Document/Chunk data models + plugin registry |
+| Parsing | txt, md, html, pdf → Document (+ optional Docling backend for complex docs) |
+| Chunking | Fixed + structure-aware + Docling → Chunks |
+| Pipeline | Embed + store + hybrid search (dense + BM25) + reranking |
+| Answer Generation | Grounded answers with source citations (OpenAI / Anthropic / Ollama) |
+| Evaluation | Hit rate, MRR, precision@k, faithfulness. A/B comparison |
+| Quantization | Compress embeddings + measure cost/quality tradeoff |
+| Migration | Re-embed + validate + safe model swap |
+| Coordination | Multi-agent blackboard — cheaper than direct messaging |
+| Local UI | Tracing dashboard, evaluation viewer, chat interface |
+| API | HTTP/JSON endpoints for all features |
 
 ## Next Steps
 

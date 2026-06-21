@@ -57,26 +57,46 @@ chunks = chunk_document(doc, strategy="fixed", chunk_tokens=256, overlap_tokens=
 
 ## ragforge.pipeline
 
+### `KnowledgeBase` (primary interface)
+
+```python
+from ragforge.pipeline import KnowledgeBase
+
+# Build from source files
+kb = KnowledgeBase.build(name="my-kb", sources=["./docs/"], chunk_strategy="structure")
+
+# Load existing
+kb = KnowledgeBase.load("my-kb")
+
+# Query (retrieval only)
+results = kb.query("How do refunds work?", mode="hybrid", top_k=5, rerank=True)
+for chunk, score in results:
+    print(f"  [{score:.3f}] {chunk.text[:80]}...")
+
+# Answer (retrieval + generation)
+result = kb.answer("How do refunds work?", llm="ollama")
+print(result["answer"])
+print(result["sources"])
+```
+
 ### `build_knowledge_base(name, sources, ...) -> dict`
 
-Build and persist a knowledge base.
+Functional interface (used by API/CLI).
 
 ```python
 from ragforge.pipeline import build_knowledge_base
 
 result = build_knowledge_base(
     name="my-kb",
-    sources=["./docs/", "policy.md"],
+    sources=["./docs/"],
     embedding_model="default",
     chunk_strategy="structure",
-    chunk_options={"max_tokens": 384},
 )
-# Returns: {"name": ..., "status": "built", "num_documents": ..., "num_chunks": ..., "embedding_model": ...}
 ```
 
 ### `query_knowledge_base(knowledge, question, ...) -> dict`
 
-Query with hybrid search (dense + BM25 + reranking).
+Functional interface with optional answer generation.
 
 ```python
 from ragforge.pipeline import query_knowledge_base
@@ -85,50 +105,69 @@ result = query_knowledge_base(
     knowledge="my-kb",
     question="How do refunds work?",
     top_k=5,
+    mode="hybrid",
     rerank=True,
+    generate=True,
+    llm="ollama",
 )
-# Returns: {"question": ..., "knowledge": ..., "chunks": [...], "answer": None}
+# result["chunks"], result["answer"], result["llm"]
 ```
 
 ---
 
 ## ragforge.evaluation
 
-### `evaluate_knowledge_base(knowledge, golden_dataset, metrics) -> dict`
-
-Evaluate retrieval quality.
+### `Evaluator` (primary interface)
 
 ```python
-from ragforge.evaluation import evaluate_knowledge_base
+from ragforge.pipeline import KnowledgeBase
+from ragforge.evaluation import Evaluator, GoldenDataset
 
-result = evaluate_knowledge_base(
-    knowledge="my-kb",
-    golden_dataset=[
-        {"question": "Refund window?", "expected_answer": "30 days"},
-    ],
-    metrics=["precision", "recall", "faithfulness"],
-)
+kb = KnowledgeBase.load("my-kb")
+golden = GoldenDataset.load("golden.json")
+
+evaluator = Evaluator(kb)
+report = evaluator.run(golden, metrics=["hit_rate", "mrr", "precision_at_k"])
+report.print_table()
 ```
 
-### `compare_configs(knowledge, golden_dataset, config_a, config_b) -> dict`
+### `Evaluator.compare(kb_a, kb_b, golden) -> dict`
 
-A/B comparison between configurations.
+A/B comparison between two knowledge bases.
 
 ```python
-from ragforge.evaluation import compare_configs
-
-result = compare_configs(
-    knowledge="base",
-    golden_dataset=golden,
-    config_a={"sources": srcs, "chunk_strategy": "fixed"},
-    config_b={"sources": srcs, "chunk_strategy": "structure"},
-)
-# Returns: {"config_a": ..., "results_a": ..., "results_b": ..., "delta": ..., "winner": "b"}
+comparison = Evaluator.compare(kb_a, kb_b, golden)
+Evaluator.print_comparison(comparison)
 ```
 
-### `compute_precision(retrieved_ids, relevant_ids) -> float`
+### `GoldenDataset`
 
-### `compute_recall(retrieved_ids, relevant_ids) -> float`
+```python
+from ragforge.evaluation import GoldenDataset
+
+golden = GoldenDataset.load("golden.json")  # Load from file
+golden.save("output.json")                  # Save to file
+print(len(golden))                          # Number of items
+```
+
+### `generate_golden_draft(knowledge, num_items, llm) -> GoldenDataset`
+
+Bootstrap a draft golden dataset from an existing KB.
+
+```python
+from ragforge.evaluation import generate_golden_draft
+
+golden = generate_golden_draft(knowledge="my-kb", num_items=20, llm="ollama")
+golden.save("golden_draft.json")
+```
+
+### Available Metrics
+
+```python
+from ragforge.evaluation import RETRIEVAL_METRICS, JUDGE_METRICS, ALL_METRICS
+# RETRIEVAL_METRICS = ["hit_rate", "precision_at_k", "recall_at_k", "mrr"]
+# JUDGE_METRICS = ["faithfulness", "answer_relevance"]
+```
 
 ---
 
@@ -193,4 +232,78 @@ cls = get("parser", "custom")
 names = available("parser")
 all_kinds()       # ["chunker", "embedding", "parser", "store"]
 registered_info() # full dict
+```
+
+
+---
+
+## ragforge.coordination
+
+### `Blackboard` / `InMemoryBlackboard`
+
+Shared key/value workspace for multi-agent coordination.
+
+```python
+from ragforge.coordination import InMemoryBlackboard, Blackboard
+
+# In-memory (for testing/ephemeral tasks)
+board = InMemoryBlackboard()
+
+# Persistent (SQLite-backed, survives crashes)
+board = Blackboard("my-task")
+
+# Write entries with markers
+board.write("findings", {"data": "..."}, author="researcher", tags={"confidence": 0.9})
+
+# Read
+entry = board.read("findings")           # by key
+entries = board.read_by_tag("confidence", lambda v: v > 0.5)  # by tag predicate
+history = board.history(key="findings")   # all writes to a key
+```
+
+### `Agent` / `Orchestrator`
+
+```python
+from ragforge.coordination import Agent, AgentResult, Orchestrator
+
+def my_trigger(board):
+    return board.has_key("input") and not board.has_key("output")
+
+def my_action(board, agent_id):
+    data = board.read("input")
+    board.write("output", f"processed: {data.value}", author=agent_id)
+    return AgentResult(agent_id=agent_id, entries_read=["input"], entries_written=["output"])
+
+agent = Agent(id="processor", trigger=my_trigger, action=my_action, max_fires=1)
+orch = Orchestrator(board, [agent], goal=lambda b: b.has_key("output"), max_steps=10)
+result = orch.run()
+# result.termination_reason, result.steps, result.total_tokens
+```
+
+### `run_benchmark(task) -> BenchmarkResult`
+
+Compare direct-messaging vs blackboard cost.
+
+```python
+from ragforge.coordination import BenchmarkTask, run_benchmark
+
+task = BenchmarkTask(
+    description="My task",
+    agents=agents,
+    goal=goal_fn,
+    simulate_direct=direct_fn,
+)
+result = run_benchmark(task)
+print(result.summary())
+print(f"Token savings: {result.token_savings_pct:.1f}%")
+```
+
+### `traced_run(board, agents, goal, ...) -> OrchestratorResult`
+
+Run with tracing (results appear in the UI dashboard).
+
+```python
+from ragforge.coordination import traced_run
+
+result = traced_run(board, agents, goal=goal_fn)
 ```

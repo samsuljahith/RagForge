@@ -18,17 +18,23 @@ ragforge parse notes.md
 # Chunk with structure-aware splitting (keeps tables/code intact)
 ragforge chunk notes.md --strategy structure --show-text
 
-# Chunk with fixed-size sliding window
-ragforge chunk notes.md --strategy fixed --max-tokens 256
-
-# Build a knowledge base
+# Build a knowledge base from a folder of docs
 ragforge knowledge build my-kb ./docs/ --strategy structure
 
-# Query it
-ragforge knowledge query my-kb "How do refunds work?"
+# Query it with hybrid search
+ragforge query my-kb "How do refunds work?"
+
+# Query with LLM-generated answer
+ragforge query my-kb "How do refunds work?" --generate --llm ollama
+
+# Evaluate against a golden dataset
+ragforge eval run my-kb golden.json
 
 # Start the API server
 ragforge serve
+
+# Launch the local UI (tracing, eval, chat)
+ragforge ui
 ```
 
 ## Python Library
@@ -58,7 +64,7 @@ build_knowledge_base(
     chunk_strategy="structure",
 )
 
-# Query with hybrid search
+# Query with hybrid search (retrieval only)
 result = query_knowledge_base(
     knowledge="my-kb",
     question="What is the refund policy?",
@@ -67,6 +73,15 @@ result = query_knowledge_base(
 
 for chunk in result["chunks"]:
     print(f"  score={chunk['score']:.3f}: {chunk['text'][:80]}...")
+
+# Query with LLM-generated answer (grounded, with sources)
+result = query_knowledge_base(
+    knowledge="my-kb",
+    question="What is the refund policy?",
+    generate=True,
+    llm="ollama",
+)
+print(result["answer"])
 ```
 
 ## HTTP API
@@ -100,6 +115,10 @@ Interactive API docs are auto-served at [http://localhost:8000/docs](http://loca
 ## What's Next
 
 - [Architecture](../core-concepts/architecture) — understand how the pieces fit together
-- [Parsing guide](../guides/parsing) — all supported formats and options
+- [Parsing guide](../guides/parsing) — all supported formats (including Docling)
 - [Chunking guide](../guides/chunking) — fixed vs structure-aware, when to use each
+- [Pipeline guide](../guides/pipeline) — embed, store, retrieve, generate answers
+- [Evaluation guide](../guides/evaluation) — measure retrieval quality
+- [Local UI](../guides/ui) — launch the tracing/eval/chat dashboard
+- [Coordination](../guides/coordination) — multi-agent blackboard coordination
 - [Using from any language](../any-language/overview) — connect agents in JS, Go, etc.

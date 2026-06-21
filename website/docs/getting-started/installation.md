@@ -39,9 +39,16 @@ pip install ragforge[all]
 | `[api]` | HTTP/JSON API server, interactive docs | FastAPI, Uvicorn, Pydantic |
 | `[pdf]` | PDF file parsing (lightweight) | pypdf |
 | `[docling]` | Advanced parsing for complex docs (PDFs with tables, DOCX, PPTX, images) | docling |
-| `[pipeline]` | Production embedding models | sentence-transformers |
+| `[pipeline]` | Production embedding models + cross-encoder reranking | sentence-transformers, numpy |
+| `[openai]` | OpenAI embeddings + LLM generation | openai |
+| `[anthropic]` | Anthropic LLM generation | anthropic |
+| `[ui]` | Local web dashboard (tracing, eval, chat) | ragforge[api], aiofiles |
 | `[all]` | All of the above | Everything |
-| `[dev]` | Development tools | pytest, httpx, ruff |
+| `[dev]` | Development tools | pytest, httpx, ruff, numpy |
+
+:::note Zero-dep modules
+Evaluation, quantization, migration, and coordination work without any extra install — they use the core package only. The extras above are for features that need external libraries (ML models, API servers, etc.).
+:::
 
 :::tip
 **Which PDF option?** Use `[pdf]` for simple text-only PDFs (fast, tiny install). Use `[docling]` for complex PDFs with tables, multi-column layouts, or when you need page-level metadata and OCR.

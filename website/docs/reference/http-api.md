@@ -29,8 +29,8 @@ List all registered plugins.
 ```json
 {
   "capabilities": {
-    "parser": ["html", "pdf", "text"],
-    "chunker": ["fixed", "structure"],
+    "parser": ["docling", "html", "pdf", "text"],
+    "chunker": ["docling", "fixed", "structure"],
     "embedding": ["default", "quantized"],
     "store": ["memory"]
   }
@@ -51,11 +51,12 @@ Parse a file or raw text into a Document.
   "path": "/data/file.md",
   "text": null,
   "doc_type": "txt",
-  "source": "api-input"
+  "source": "api-input",
+  "parser": null
 }
 ```
 
-Provide either `path` (server-side file) OR `text` (raw content). Not both.
+Provide either `path` (server-side file) OR `text` (raw content). Optionally specify `parser` to force a backend (`"text"`, `"html"`, `"pdf"`, `"docling"`).
 
 **Response (200):**
 ```json
@@ -153,7 +154,7 @@ Build/index a knowledge base from source documents.
 
 ### POST /query
 
-Query a knowledge base with hybrid search.
+Query a knowledge base with hybrid search. Optionally generate a grounded answer.
 
 **Request:**
 ```json
@@ -161,9 +162,22 @@ Query a knowledge base with hybrid search.
   "knowledge": "my-kb",
   "question": "How do refunds work?",
   "top_k": 5,
-  "rerank": true
+  "mode": "hybrid",
+  "rerank": true,
+  "generate": false,
+  "llm": null
 }
 ```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `knowledge` | required | Knowledge base name |
+| `question` | required | Query text |
+| `top_k` | 5 | Number of chunks to retrieve |
+| `mode` | `"hybrid"` | `"dense"`, `"bm25"`, or `"hybrid"` |
+| `rerank` | false | Apply cross-encoder reranking |
+| `generate` | false | Generate a grounded LLM answer |
+| `llm` | null | Provider: `"openai"`, `"anthropic"`, `"ollama"` (required if generate=true) |
 
 **Response (200):**
 ```json
@@ -177,12 +191,15 @@ Query a knowledge base with hybrid search.
       "doc_id": "a1b2c3d4",
       "index": 0,
       "metadata": {"section": "Refund Policy"},
-      "score": 0.0312
+      "score": 0.89
     }
   ],
-  "answer": null
+  "answer": "Refunds are processed within 30 days of the return...",
+  "llm": "ollama"
 }
 ```
+
+The `answer` field is `null` when `generate` is false.
 
 **Errors:**
 - `404` — Knowledge base not found
@@ -287,6 +304,110 @@ Migrate a knowledge base between embedding models.
 **Errors:**
 - `404` — Knowledge base not found
 - `501` — Migration module not installed
+
+---
+
+## Coordination
+
+### POST /coordination/boards
+
+Create a blackboard.
+
+**Request:**
+```json
+{"name": "my-task", "persist": false}
+```
+
+### GET /coordination/boards/\{name\}
+
+Get current board state (all entries).
+
+### POST /coordination/boards/\{name\}/write
+
+Write an entry to the board.
+
+**Request:**
+```json
+{
+  "key": "findings",
+  "value": "The data shows...",
+  "author": "researcher",
+  "tags": {"confidence": 0.9, "status": "ready"}
+}
+```
+
+### GET /coordination/boards/\{name\}/history
+
+Get the full write history for a board.
+
+### DELETE /coordination/boards/\{name\}
+
+Clear all entries (history preserved).
+
+### POST /coordination/run
+
+Run a multi-agent coordination task.
+
+**Request:**
+```json
+{
+  "board_name": "demo",
+  "agents": [
+    {
+      "id": "processor",
+      "trigger_key": "input",
+      "trigger_condition": "missing:output",
+      "output_key": "output",
+      "output_value": "processed"
+    }
+  ],
+  "seed": [{"key": "input", "value": "raw data", "author": "user"}],
+  "goal_key": "output",
+  "max_steps": 10
+}
+```
+
+**Response (200):**
+```json
+{
+  "run_id": "run-0001",
+  "termination_reason": "goal_met",
+  "num_steps": 1,
+  "total_tokens": 0,
+  "total_cost_usd": 0.0,
+  "duration_ms": 2.5,
+  "steps": [...],
+  "board_state": {...}
+}
+```
+
+### GET /coordination/run/\{run_id\}
+
+Get trace and cost summary of a previous run.
+
+---
+
+## Tracing & UI
+
+### GET /traces
+
+List recent pipeline traces.
+
+### GET /traces/\{run_id\}
+
+Get full trace detail (steps, timing, tokens).
+
+### POST /ui/eval/run
+
+Run an evaluation from the UI.
+
+### GET /ui/eval/history
+
+Get evaluation run history.
+
+### POST /ui/chat
+
+Send a chat message (retrieves + generates answer).
 
 ---
 

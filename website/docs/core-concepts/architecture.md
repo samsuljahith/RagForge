@@ -30,10 +30,12 @@ graph TB
     subgraph "Modules"
         PARSE[Parsing]
         CHUNK[Chunking]
-        PIPE[Pipeline]
+        PIPE[Pipeline + Generation]
         EVAL[Evaluation]
         QUANT[Quantization]
         MIG[Migration]
+        COORD[Coordination]
+        UI[Local UI]
     end
 
     PY --> API
@@ -48,9 +50,11 @@ graph TB
     REG --> EVAL
     REG --> QUANT
     REG --> MIG
+    REG --> COORD
     MOD --> PARSE
     MOD --> CHUNK
     MOD --> PIPE
+    UI --> API
 ```
 
 ## Design Principles
@@ -101,6 +105,8 @@ flowchart LR
     STORE --> SEARCH
     SEARCH --> RERANK[Reranker]
     RERANK --> RESULTS[Retrieved Chunks]
+    RESULTS --> LLM[LLM Generation]
+    LLM --> ANSWER[Grounded Answer + Sources]
 ```
 
 ## Module Dependencies
@@ -110,13 +116,15 @@ graph BT
     CORE[Core: Models + Registry]
     PARSE[Parsing] --> CORE
     CHUNK[Chunking] --> CORE
-    PIPE[Pipeline] --> CORE
+    PIPE[Pipeline + Generation] --> CORE
     PIPE --> PARSE
     PIPE --> CHUNK
     EVAL[Evaluation] --> PIPE
     QUANT[Quantization] --> EVAL
     MIG[Migration] --> EVAL
     MIG --> PIPE
+    COORD[Coordination] --> CORE
+    UI[Local UI] --> API
     API[API Layer] --> CORE
     API --> PARSE
     API --> CHUNK
@@ -124,4 +132,23 @@ graph BT
     API --> EVAL
     API --> QUANT
     API --> MIG
+    API --> COORD
+```
+
+## Directory Structure
+
+```
+ragforge/
+├── core/            # Shared models (Document, Chunk) + plugin registry
+├── parsing/         # File → Document (txt, md, html, pdf, docling)
+├── chunking/        # Document → Chunks (fixed, structure, docling)
+├── pipeline/        # Embed + store + retrieve + generate answers
+├── evaluation/      # Measure retrieval + generation quality
+├── quantization/    # Compress embeddings + measure tradeoff
+├── migration/       # Swap embedding models safely
+├── coordination/    # Multi-agent blackboard + orchestrator + benchmark
+├── api/             # HTTP/JSON endpoints (FastAPI)
+├── tracing.py       # SQLite-backed trace store for observability
+├── ui_static/       # Pre-built frontend for ragforge ui
+└── cli.py           # Command-line interface
 ```
