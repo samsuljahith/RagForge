@@ -194,6 +194,19 @@ class InMemoryStore(VectorStore):
         """Access all stored chunks."""
         return self._chunks
 
+    def get_vectors(self, chunk_ids: set[str] | None = None) -> tuple[list[Chunk], list[list[float]]]:
+        """
+        Return (chunks, vectors) pairs, optionally filtered to a set of chunk ids.
+
+        Lets callers pull the existing vectors for a chunk subset (e.g. a hot
+        set) without re-embedding — chunks and vectors are returned in
+        matching order.
+        """
+        if chunk_ids is None:
+            return list(self._chunks), list(self._vectors)
+        pairs = [(c, v) for c, v in zip(self._chunks, self._vectors) if c.id in chunk_ids]
+        return [c for c, _ in pairs], [v for _, v in pairs]
+
     def save(self, path: str | Path) -> None:
         """
         Persist the store to a JSON file.
