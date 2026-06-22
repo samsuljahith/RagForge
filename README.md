@@ -44,6 +44,7 @@ ragforge knowledge build my-kb ./docs/             # build a knowledge base
 ragforge query my-kb "How do refunds work?"        # query it (hybrid search)
 ragforge query my-kb "refunds?" --generate --llm ollama  # with LLM answer
 ragforge eval run my-kb golden.json                # evaluate retrieval quality
+ragforge migrate gate my-kb golden.json --old default --new openai  # decision gate
 ragforge agents run config.py                      # run multi-agent task
 ragforge serve                                     # start the API server
 ragforge ui                                        # launch local dashboard
@@ -134,6 +135,8 @@ const { chunks, answer } = await resp.json();
 | `/evaluate` | POST | Measure retrieval quality vs golden dataset |
 | `/quantize` | POST | Quantize + compare cost/quality |
 | `/migrate` | POST | Migrate between embedding models |
+| `/migrate/gate` | POST | Decision gate: compare old vs new model (GO/NO_GO) |
+| `/migrate/smoke-test` | POST | Post-migration verification |
 | `/traces` | GET | List pipeline traces |
 | `/coordination/boards` | POST | Create/inspect blackboards |
 | `/coordination/run` | POST | Run a multi-agent task |

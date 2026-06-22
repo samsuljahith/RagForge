@@ -462,6 +462,94 @@ def _cmd_agents_board(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_migrate_gate(args: argparse.Namespace) -> int:
+    """Run the migration decision gate (compare old vs new model on golden set)."""
+    from ragforge.migration.gate import run_decision_gate
+    from ragforge.migration.migrator import _get_embedder
+    from ragforge.pipeline.knowledge import KnowledgeBase
+    from ragforge.evaluation.golden import GoldenDataset
+
+    kb = KnowledgeBase.load(args.knowledge)
+    golden = GoldenDataset.load(args.golden)
+    old_embedder = _get_embedder(args.old)
+    new_embedder = _get_embedder(args.new)
+
+    decision = run_decision_gate(
+        chunks=kb.store.chunks if hasattr(kb, 'store') else [],
+        old_embedder=old_embedder,
+        new_embedder=new_embedder,
+        golden=golden,
+        primary_metric=args.metric,
+        threshold_margin=args.margin,
+        top_k=args.k,
+        hot_set_only=not args.full_corpus,
+    )
+
+    if args.json:
+        print(json.dumps(decision.to_dict(), indent=2))
+    else:
+        decision.print_table()
+    return 0 if decision.recommendation == "GO" else 1
+
+
+def _cmd_migrate_run(args: argparse.Namespace) -> int:
+    """Run a migration (optionally gated)."""
+    if args.gated:
+        from ragforge.migration import migrate_with_gate
+
+        result = migrate_with_gate(
+            knowledge=args.knowledge,
+            from_model=args.old,
+            to_model=args.new,
+            golden_path=args.golden,
+            primary_metric=args.metric,
+            threshold_margin=args.margin,
+            top_k=args.k,
+            hot_set_first=not args.full_corpus,
+            force=args.force,
+        )
+    else:
+        from ragforge.migration import migrate_knowledge_base
+
+        result = migrate_knowledge_base(
+            knowledge=args.knowledge,
+            from_model=args.old,
+            to_model=args.new,
+            validate=bool(args.golden),
+            golden_path=args.golden,
+            force=args.force,
+        )
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        status = result.get("status", "unknown")
+        print(f"Migration: {status}")
+        if result.get("gate_decision"):
+            print(f"  Gate: {result['gate_decision'].get('recommendation', 'N/A')}")
+        print(f"  Chunks migrated: {result.get('num_chunks_migrated', 0)}")
+    return 0 if result.get("status") == "migrated" else 1
+
+
+def _cmd_migrate_smoke(args: argparse.Namespace) -> int:
+    """Run post-migration smoke test."""
+    from ragforge.migration.gate import smoke_test
+    from ragforge.evaluation.golden import GoldenDataset
+
+    golden = GoldenDataset.load(args.golden)
+    result = smoke_test(
+        knowledge=args.knowledge,
+        golden=golden,
+        top_k=args.k,
+    )
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        result.print_summary()
+    return 0 if result.passed else 1
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     """Start the HTTP/JSON API server."""
     try:
@@ -636,6 +724,46 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("name", help="blackboard name")
     sp.add_argument("--json", action="store_true", help="output as JSON")
     sp.set_defaults(func=_cmd_agents_board)
+
+    # --- migrate ---
+    migrate_parser = sub.add_parser("migrate", help="migrate between embedding models (with decision gate)")
+    migrate_sub = migrate_parser.add_subparsers(dest="migrate_command", required=True)
+
+    # migrate gate
+    sp = migrate_sub.add_parser("gate", help="run the decision gate (compare old vs new model)")
+    sp.add_argument("knowledge", help="knowledge base name")
+    sp.add_argument("golden", help="path to golden dataset (JSON)")
+    sp.add_argument("--old", required=True, help="current embedding model name")
+    sp.add_argument("--new", required=True, help="candidate embedding model name")
+    sp.add_argument("-k", type=int, default=5, help="top-k for retrieval metrics (default: 5)")
+    sp.add_argument("--metric", default="recall_at_k", help="primary metric for GO/NO_GO (default: recall_at_k)")
+    sp.add_argument("--margin", type=float, default=0.0, help="allowed regression margin (default: 0.0)")
+    sp.add_argument("--full-corpus", action="store_true", help="evaluate full corpus (not just hot set)")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_migrate_gate)
+
+    # migrate run
+    sp = migrate_sub.add_parser("run", help="run a migration (optionally gated)")
+    sp.add_argument("knowledge", help="knowledge base name")
+    sp.add_argument("--old", required=True, help="current embedding model name")
+    sp.add_argument("--new", required=True, help="target embedding model name")
+    sp.add_argument("--golden", default=None, help="path to golden dataset (required for --gated)")
+    sp.add_argument("--gated", action="store_true", help="run decision gate first, abort if NO_GO")
+    sp.add_argument("--force", action="store_true", help="proceed even if gate says NO_GO")
+    sp.add_argument("-k", type=int, default=5, help="top-k for gate metrics")
+    sp.add_argument("--metric", default="recall_at_k", help="primary metric for gate")
+    sp.add_argument("--margin", type=float, default=0.0, help="allowed regression margin")
+    sp.add_argument("--full-corpus", action="store_true", help="gate on full corpus")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_migrate_run)
+
+    # migrate smoke-test
+    sp = migrate_sub.add_parser("smoke-test", help="post-migration smoke test")
+    sp.add_argument("knowledge", help="knowledge base name")
+    sp.add_argument("golden", help="path to golden dataset (JSON)")
+    sp.add_argument("-k", type=int, default=5, help="top-k for retrieval (default: 5)")
+    sp.add_argument("--json", action="store_true", help="output as JSON")
+    sp.set_defaults(func=_cmd_migrate_smoke)
 
     # --- serve ---
     sp = sub.add_parser("serve", help="start the HTTP/JSON API server")

@@ -95,3 +95,111 @@ curl -X POST http://localhost:8000/migrate \
 - Moving from a general model to a domain-specific one
 - Switching providers (e.g., OpenAI → open-source)
 - Downgrading to a cheaper model after confirming quality is acceptable (use quantization module first to check)
+
+## Decision Gate (Recommended)
+
+Don't migrate blind — prove the new model wins on YOUR data first.
+
+The decision gate compares old vs new embedding model on your golden dataset (real queries with known-relevant chunks) and returns a GO/NO_GO recommendation BEFORE any full re-embedding happens.
+
+### Python
+
+```python
+from ragforge.migration import run_decision_gate, migrate_with_gate
+from ragforge.evaluation.golden import GoldenDataset
+
+# Just the gate (no migration)
+from ragforge.pipeline.embeddings import DefaultEmbedder
+decision = run_decision_gate(
+    chunks=kb.store.chunks,
+    old_embedder=old_emb,
+    new_embedder=new_emb,
+    golden=GoldenDataset.load("golden.json"),
+    primary_metric="recall_at_k",
+    threshold_margin=0.0,  # new must be >= old
+    top_k=5,
+)
+decision.print_table()  # Shows: OLD vs NEW vs delta, GO/NO_GO
+
+# Gated migration (gate first, then migrate if GO)
+result = migrate_with_gate(
+    knowledge="my-kb",
+    from_model="default",
+    to_model="openai",
+    golden_path="golden.json",
+)
+# Returns immediately with NO_GO if new model regresses — no cost wasted.
+```
+
+### CLI
+
+```bash
+# Run the gate only (see the comparison, no migration)
+ragforge migrate gate my-kb golden.json --old default --new openai -k 5
+
+# Run gated migration (gate + migrate if GO)
+ragforge migrate run my-kb --old default --new openai --gated --golden golden.json
+
+# Force through even if gate says NO_GO
+ragforge migrate run my-kb --old default --new openai --gated --golden golden.json --force
+
+# Allow up to 5% regression
+ragforge migrate gate my-kb golden.json --old default --new cheaper --margin 0.05
+```
+
+### API
+
+```bash
+# Gate only
+curl -X POST http://localhost:8000/migrate/gate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "knowledge": "my-kb",
+    "golden_path": "golden.json",
+    "old_model": "default",
+    "new_model": "openai",
+    "primary_metric": "recall_at_k",
+    "top_k": 5
+  }'
+```
+
+### How it decides
+
+| Condition | Result |
+|-----------|--------|
+| New model's recall@k >= old model's | **GO** |
+| New ties (within margin) | **GO** |
+| New regresses beyond margin | **NO_GO** — migration aborted |
+
+## Hot-Set-First (Cost Optimization)
+
+When a golden dataset is provided, the gate only re-embeds the "hot set" — chunks that your real queries actually reference. If the gate rejects the new model, the cold tail (rarely-queried chunks) never gets re-embedded at all.
+
+**Caveat**: Mixed-index retrieval (some chunks new-model, some old) has score-comparability limitations. The hot-set approach is used for the GATE decision only — if GO, the full corpus is re-embedded before cutover.
+
+## Post-Migration Smoke Test
+
+After a migration, verify it actually worked:
+
+```bash
+ragforge migrate smoke-test my-kb golden.json
+```
+
+```python
+from ragforge.migration import smoke_test
+from ragforge.evaluation.golden import GoldenDataset
+
+result = smoke_test("my-kb", GoldenDataset.load("golden.json"))
+result.print_summary()
+# Checks: KB loads ✓, queries return results ✓, hit rate above threshold ✓
+```
+
+The smoke test runs your golden queries against the migrated index and verifies:
+1. KB loads successfully after migration
+2. Every query returns non-empty results
+3. Expected chunks appear in the top-k
+4. Overall hit rate meets the threshold
+
+## Scope (what this is and isn't)
+
+This module validates and stages the model swap. It is NOT a full enterprise rollout system — no dual-write orchestration, no multi-environment deployment, no race-condition fencing. It decides IF the swap is safe, performs it atomically, and verifies it worked.

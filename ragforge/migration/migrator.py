@@ -242,3 +242,103 @@ def migrate_knowledge_base(
         "gate": gate,
         "num_chunks_migrated": len(all_chunks),
     }
+
+
+def migrate_with_gate(
+    knowledge: str,
+    from_model: str,
+    to_model: str,
+    golden_path: str | Path,
+    primary_metric: str = "recall_at_k",
+    threshold_margin: float = 0.0,
+    top_k: int = 5,
+    hot_set_first: bool = True,
+    force: bool = False,
+) -> dict[str, Any]:
+    """
+    Run the decision gate FIRST, then migrate only if GO.
+
+    This is the recommended entrypoint for safe migrations. It:
+      1. Loads the KB and golden dataset
+      2. Runs the decision gate (old vs new model on your queries)
+      3. If NO_GO and force=False → aborts, returns the gate decision
+      4. If GO (or force=True) → proceeds with full migration
+
+    The gate uses the new public gate.py API (run_decision_gate) which
+    provides a structured GateDecision with print_table() for clear output.
+
+    Args:
+        knowledge: Name of the knowledge base to migrate.
+        from_model: Current embedding model name.
+        to_model: Target embedding model name.
+        golden_path: Path to golden dataset (JSON). Required for the gate.
+        primary_metric: Metric that decides GO/NO_GO (default: recall_at_k).
+        threshold_margin: Allowed regression on primary metric (0.0 = must not regress).
+        top_k: top_k for gate retrieval evaluation.
+        hot_set_first: Only embed/evaluate the hot set before deciding (cheaper).
+        force: Proceed even if the gate says NO_GO.
+
+    Returns:
+        dict with: gate_decision (GateDecision.to_dict()), migration_status, counts.
+    """
+    from ragforge.migration.gate import run_decision_gate, GateDecision
+
+    kb_path = _KB_DIR / knowledge
+    if not kb_path.exists():
+        raise FileNotFoundError(f"Knowledge base '{knowledge}' not found")
+
+    store_path = kb_path / "vectors.json"
+    if not store_path.exists():
+        raise FileNotFoundError(f"Vector store not found for '{knowledge}'")
+
+    old_store = InMemoryStore.load(store_path)
+    chunks = old_store.chunks
+
+    if not chunks:
+        return {
+            "status": "nothing_to_migrate",
+            "gate_decision": None,
+            "num_chunks_migrated": 0,
+        }
+
+    golden = GoldenDataset.load(golden_path)
+    old_embedder = _get_embedder(from_model)
+    new_embedder = _get_embedder(to_model)
+
+    # Run the decision gate
+    decision = run_decision_gate(
+        chunks=chunks,
+        old_embedder=old_embedder,
+        new_embedder=new_embedder,
+        golden=golden,
+        primary_metric=primary_metric,
+        threshold_margin=threshold_margin,
+        top_k=top_k,
+        hot_set_only=hot_set_first,
+    )
+
+    # Print the comparison table
+    decision.print_table()
+
+    # If NO_GO and not forced, abort
+    if decision.recommendation == "NO_GO" and not force:
+        return {
+            "status": "rejected_by_gate",
+            "gate_decision": decision.to_dict(),
+            "num_chunks_migrated": 0,
+            "knowledge": knowledge,
+            "from_model": from_model,
+            "to_model": to_model,
+        }
+
+    # Gate passed (or forced) — proceed with full migration
+    result = migrate_knowledge_base(
+        knowledge=knowledge,
+        from_model=from_model,
+        to_model=to_model,
+        validate=False,  # gate already validated
+        golden_path=None,
+        force=True,
+    )
+    result["gate_decision"] = decision.to_dict()
+    return result
