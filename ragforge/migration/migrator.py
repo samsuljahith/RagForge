@@ -59,6 +59,27 @@ def _get_embedder(model_name: str) -> Embedder:
             return DefaultEmbedder()
 
 
+def _encode_with_cache(
+    embedder: Embedder,
+    chunks: list[Chunk],
+    cached_vectors: dict[str, list[float]] | None,
+) -> list[list[float]]:
+    """
+    Encode `chunks` with `embedder`, reusing any vector already present in
+    `cached_vectors` (keyed by chunk id) instead of recomputing it.
+
+    Used to avoid re-embedding hot-set chunks that the decision gate already
+    embedded with the same new model.
+    """
+    cached_vectors = cached_vectors or {}
+    to_encode = [c for c in chunks if c.id not in cached_vectors]
+    fresh = dict(zip(
+        (c.id for c in to_encode),
+        embedder.encode([c.text for c in to_encode]) if to_encode else [],
+    ))
+    return [cached_vectors[c.id] if c.id in cached_vectors else fresh[c.id] for c in chunks]
+
+
 def _shadow_kb(name: str, chunks: list[Chunk], vectors: list[list[float]], embedder: Embedder) -> KnowledgeBase:
     """Build an in-memory, unpersisted KnowledgeBase over a chunk subset for evaluation."""
     store = InMemoryStore()
@@ -116,6 +137,7 @@ def migrate_knowledge_base(
     force: bool = False,
     top_k: int = 5,
     options: dict[str, Any] | None = None,
+    cached_vectors: dict[str, list[float]] | None = None,
 ) -> dict[str, Any]:
     """
     Migrate a knowledge base from one embedding model to another.
@@ -144,6 +166,11 @@ def migrate_knowledge_base(
         top_k: top_k used for gate retrieval metrics.
         options: Additional migration options (currently unused; reserved
                  for future backends).
+        cached_vectors: Already-computed `to_model` embeddings, keyed by
+                         chunk id (e.g. from a prior `run_decision_gate()`
+                         call). Chunks present here are never re-encoded.
+                         Caller is responsible for ensuring these vectors
+                         were actually produced by `to_model`.
 
     Returns:
         dict with migration status, gate results (if run), and counts.
@@ -187,7 +214,7 @@ def migrate_knowledge_base(
             cold_chunks = [c for c in chunks if c.id not in hot_ids]
 
         # Pay for re-embedding the hot set ONLY, then gate before going further.
-        hot_new_vectors = new_embedder.encode([c.text for c in hot_chunks])
+        hot_new_vectors = _encode_with_cache(new_embedder, hot_chunks, cached_vectors)
         old_hot_chunks, old_hot_vectors = old_store.get_vectors({c.id for c in hot_chunks})
 
         gate = _run_gate(
@@ -211,10 +238,10 @@ def migrate_knowledge_base(
 
         new_vectors_by_chunk = hot_new_vectors
     else:
-        new_vectors_by_chunk = new_embedder.encode([c.text for c in hot_chunks])
+        new_vectors_by_chunk = _encode_with_cache(new_embedder, hot_chunks, cached_vectors)
 
     # Gate passed (or forced, or no golden set at all) — re-embed whatever's left.
-    cold_new_vectors = new_embedder.encode([c.text for c in cold_chunks]) if cold_chunks else []
+    cold_new_vectors = _encode_with_cache(new_embedder, cold_chunks, cached_vectors) if cold_chunks else []
 
     all_chunks = hot_chunks + cold_chunks
     all_new_vectors = new_vectors_by_chunk + cold_new_vectors
@@ -331,7 +358,14 @@ def migrate_with_gate(
             "to_model": to_model,
         }
 
-    # Gate passed (or forced) — proceed with full migration
+    # Gate passed (or forced) — proceed with full migration, reusing whatever
+    # new-model embeddings the gate already computed (the hot set, normally)
+    # instead of paying to re-embed those same chunks a second time. Only
+    # reuse the cache if it was actually produced by the model we're
+    # migrating to.
+    cached_vectors = (
+        decision.new_model_vectors if decision.new_model_name == new_embedder.name else None
+    )
     result = migrate_knowledge_base(
         knowledge=knowledge,
         from_model=from_model,
@@ -339,6 +373,7 @@ def migrate_with_gate(
         validate=False,  # gate already validated
         golden_path=None,
         force=True,
+        cached_vectors=cached_vectors,
     )
     result["gate_decision"] = decision.to_dict()
     return result

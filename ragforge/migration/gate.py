@@ -26,7 +26,7 @@ Usage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ragforge.core.models import Chunk
@@ -65,6 +65,14 @@ class GateDecision:
     reason: str
     hot_set_size: int = 0
     total_chunks: int = 0
+    # New-model embeddings computed for the evaluated chunks during the gate
+    # check, keyed by chunk id, plus the model name that produced them. Lets
+    # a subsequent migration reuse these instead of re-embedding the same
+    # chunks. Internal use only - deliberately excluded from to_dict() so
+    # API/CLI JSON output is unaffected and large vector arrays never leak
+    # into a response payload.
+    new_model_name: str = ""
+    new_model_vectors: dict[str, list[float]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -191,6 +199,7 @@ def run_decision_gate(
             reason="No golden dataset provided — gate skipped (nothing to compare against).",
             hot_set_size=0,
             total_chunks=len(chunks),
+            new_model_name=new_embedder.name,
         )
 
     # Determine which chunks to evaluate
@@ -206,6 +215,7 @@ def run_decision_gate(
     texts = [c.text for c in eval_chunks]
     old_vectors = old_embedder.encode(texts)
     new_vectors = new_embedder.encode(texts)
+    new_model_vectors = {c.id: v for c, v in zip(eval_chunks, new_vectors)}
 
     # Build shadow KBs for evaluation
     old_kb = _build_shadow_kb("old_model", eval_chunks, old_vectors, old_embedder)
@@ -257,6 +267,8 @@ def run_decision_gate(
         reason=reason,
         hot_set_size=len(eval_chunks),
         total_chunks=len(chunks),
+        new_model_name=new_embedder.name,
+        new_model_vectors=new_model_vectors,
     )
 
 

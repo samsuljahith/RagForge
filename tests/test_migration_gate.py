@@ -12,11 +12,17 @@ Uses mocked embedders (no real model downloads) to test:
 
 from __future__ import annotations
 
+import json
+import shutil
+from pathlib import Path
+
 import pytest
 
 from ragforge.core.models import Chunk
+from ragforge.core.registry import available, register
 from ragforge.evaluation.golden import GoldenDataset, GoldenItem
 from ragforge.pipeline.embeddings import Embedder
+from ragforge.pipeline.store import InMemoryStore
 from ragforge.migration.gate import (
     run_decision_gate,
     GateDecision,
@@ -25,6 +31,7 @@ from ragforge.migration.gate import (
     SmokeTestResult,
     GATE_METRICS,
 )
+from ragforge.migration.migrator import migrate_with_gate, _KB_DIR
 
 
 # ─── Mock Embedders ────────────────────────────────────────────────────────────
@@ -94,6 +101,59 @@ class SlightlyBetterEmbedder(Embedder):
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         return [self.embed(t) for t in texts]
+
+
+class CountingEmbedder(Embedder):
+    """
+    Same retrieval quality as SlightlyBetterEmbedder, but counts how many
+    times each text gets encoded. The count is a CLASS attribute (not
+    instance) because `_get_embedder()` constructs a fresh instance on
+    every lookup by name - an instance counter would miss calls made
+    through a different instance of the same registered model.
+    """
+
+    calls: dict[str, int] = {}
+
+    @property
+    def name(self) -> str:
+        return "counting-mock"
+
+    @property
+    def dimension(self) -> int:
+        return 4
+
+    def embed(self, text: str) -> list[float]:
+        if "refund" in text.lower():
+            return [1.0, 0.0, 0.0, 0.0]
+        elif "shipping" in text.lower():
+            return [0.0, 1.0, 0.0, 0.0]
+        else:
+            return [0.0, 0.0, 0.5, 0.5]
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        for t in texts:
+            type(self).calls[t] = type(self).calls.get(t, 0) + 1
+        return [self.embed(t) for t in texts]
+
+
+class BadCountingEmbedder(Embedder):
+    """Same poor retrieval quality as BadEmbedder, but counts encode() calls
+    per text - same class-attribute rationale as CountingEmbedder."""
+
+    calls: dict[str, int] = {}
+
+    @property
+    def name(self) -> str:
+        return "bad-counting-mock"
+
+    @property
+    def dimension(self) -> int:
+        return 4
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        for t in texts:
+            type(self).calls[t] = type(self).calls.get(t, 0) + 1
+        return [[0.5, 0.5, 0.5, 0.5] for _ in texts]
 
 
 # ─── Test Fixtures ─────────────────────────────────────────────────────────────
@@ -353,3 +413,118 @@ class TestMigrateCLI:
         assert args.knowledge == "my-kb"
         assert args.golden == "golden.json"
         assert args.k == 10
+
+
+# ─── No-Double-Embed Tests ──────────────────────────────────────────────────────
+
+class TestNoDoubleEmbed:
+    """
+    Prove migrate_with_gate() embeds each chunk with the new model AT MOST
+    ONCE across the whole gate-then-migrate flow: once for the hot set
+    (during the gate check), reused (not recomputed) during the actual
+    migration, and once for the cold tail (only during the migration,
+    since the gate never touches it).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _register_embedders(self):
+        for embedder_name, cls in [
+            ("old-mock", GoodEmbedder),
+            ("counting-mock", CountingEmbedder),
+            ("bad-counting-mock", BadCountingEmbedder),
+        ]:
+            if embedder_name not in available("embedder"):
+                register("embedder", embedder_name)(cls)
+        CountingEmbedder.calls.clear()
+        BadCountingEmbedder.calls.clear()
+        yield
+        CountingEmbedder.calls.clear()
+        BadCountingEmbedder.calls.clear()
+
+    def _build_kb(self, name: str, chunks: list[Chunk]) -> None:
+        kb_dir = _KB_DIR / name
+        kb_dir.mkdir(parents=True, exist_ok=True)
+
+        store = InMemoryStore()
+        vectors = GoodEmbedder().encode([c.text for c in chunks])
+        store.add(chunks, vectors)
+        store.save(kb_dir / "vectors.json")
+        (kb_dir / "meta.json").write_text(json.dumps({"embedder_name": "old-mock", "embedder_dim": 4}))
+
+    def _cleanup(self, name: str) -> None:
+        kb_dir = _KB_DIR / name
+        if kb_dir.exists():
+            shutil.rmtree(kb_dir)
+
+    def test_each_chunk_embedded_at_most_once(self, sample_chunks, sample_golden, tmp_path):
+        name = "migration-gate-no-double-embed"
+        try:
+            self._build_kb(name, sample_chunks)
+
+            golden_path = tmp_path / "golden.json"
+            sample_golden.save_json(golden_path)
+
+            result = migrate_with_gate(
+                knowledge=name,
+                from_model="old-mock",
+                to_model="counting-mock",
+                golden_path=str(golden_path),
+                top_k=3,
+            )
+
+            assert result["status"] == "migrated"
+            assert result["gate_decision"]["recommendation"] == "GO"
+
+            # Hot set (referenced by sample_golden): embedded once, during the
+            # gate. Cold tail ("chunk-other"): embedded once, during the
+            # migration. Nothing embedded twice, nothing skipped.
+            hot_texts = [c.text for c in sample_chunks if c.id != "chunk-other"]
+            cold_text = next(c.text for c in sample_chunks if c.id == "chunk-other")
+
+            for text in hot_texts:
+                assert CountingEmbedder.calls.get(text) == 1, f"hot chunk embedded {CountingEmbedder.calls.get(text)} times: {text!r}"
+            assert CountingEmbedder.calls.get(cold_text) == 1
+
+            # Sanity: every chunk text appears in the call log exactly once.
+            # (The golden questions are also encoded, for retrieval during
+            # the gate - that's expected and unrelated to chunk re-embedding.)
+            chunk_call_counts = [CountingEmbedder.calls.get(c.text) for c in sample_chunks]
+            assert chunk_call_counts == [1] * len(sample_chunks)
+        finally:
+            self._cleanup(name)
+
+    def test_no_go_embeds_only_the_hot_set_once(self, sample_chunks, sample_golden, tmp_path):
+        """NO_GO still embeds the hot set exactly once (for the gate check)
+        and nothing else - migration never proceeds."""
+        name = "migration-gate-no-go-embed-count"
+        try:
+            self._build_kb(name, sample_chunks)
+
+            golden_path = tmp_path / "golden.json"
+            sample_golden.save_json(golden_path)
+
+            result = migrate_with_gate(
+                knowledge=name,
+                from_model="old-mock",
+                to_model="bad-counting-mock",
+                golden_path=str(golden_path),
+                top_k=3,
+            )
+
+            assert result["status"] == "rejected_by_gate"
+            assert result["gate_decision"]["recommendation"] == "NO_GO"
+            assert result["num_chunks_migrated"] == 0
+
+            # Only the 4 hot-set chunks were ever embedded (once each), for
+            # the gate check. The cold chunk ("chunk-other") was never
+            # touched since migration never proceeds.
+            hot_texts = [c.text for c in sample_chunks if c.id != "chunk-other"]
+            cold_text = next(c.text for c in sample_chunks if c.id == "chunk-other")
+
+            for text in hot_texts:
+                assert BadCountingEmbedder.calls.get(text) == 1
+            assert cold_text not in BadCountingEmbedder.calls
+            hot_call_counts = [BadCountingEmbedder.calls.get(t) for t in hot_texts]
+            assert hot_call_counts == [1] * len(hot_texts)
+        finally:
+            self._cleanup(name)
