@@ -1,0 +1,59 @@
+{
+  "benchmark": "migration_decision_gate",
+  "dataset": "scifact",
+  "dataset_source": "BeIR/scifact via Hugging Face datasets",
+  "num_docs": 5183,
+  "num_queries": 300,
+  "model_a": "sentence-transformers/all-MiniLM-L6-v2",
+  "model_b": "sentence-transformers/paraphrase-MiniLM-L3-v2",
+  "results_by_k": {
+    "k=5": {
+      "recommendation": "NO_GO",
+      "old_metrics": {
+        "recall_at_k": 0.7379,
+        "precision_at_k": 0.164,
+        "mrr": 0.5997
+      },
+      "new_metrics": {
+        "recall_at_k": 0.5751,
+        "precision_at_k": 0.126,
+        "mrr": 0.4682
+      },
+      "deltas": {
+        "recall_at_k": -0.1628,
+        "precision_at_k": -0.038,
+        "mrr": -0.1315
+      },
+      "primary_metric": "recall_at_k",
+      "threshold_margin": 0.0,
+      "reason": "New model regresses recall_at_k: 0.7379 \u2192 0.5751 (delta: -0.1628, exceeds margin 0.0)",
+      "hot_set_size": 5183,
+      "total_chunks": 5183
+    },
+    "k=10": {
+      "recommendation": "NO_GO",
+      "old_metrics": {
+        "recall_at_k": 0.7833,
+        "precision_at_k": 0.0883,
+        "mrr": 0.6047
+      },
+      "new_metrics": {
+        "recall_at_k": 0.6489,
+        "precision_at_k": 0.073,
+        "mrr": 0.4772
+      },
+      "deltas": {
+        "recall_at_k": -0.1344,
+        "precision_at_k": -0.0153,
+        "mrr": -0.1275
+      },
+      "primary_metric": "recall_at_k",
+      "threshold_margin": 0.0,
+      "reason": "New model regresses recall_at_k: 0.7833 \u2192 0.6489 (delta: -0.1344, exceeds margin 0.0)",
+      "hot_set_size": 5183,
+      "total_chunks": 5183
+    }
+  },
+  "date": "2026-06-22T18:52:15.998674",
+  "notes": "Compared sentence-transformers/all-MiniLM-L6-v2 (baseline) vs sentence-transformers/paraphrase-MiniLM-L3-v2 (candidate) on scifact (5183 docs, 300 queries). Used full corpus (not hot-set-only) for honest evaluation. Each doc = one chunk (no re-chunking, so qrels map cleanly)."
+}
