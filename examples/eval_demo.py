@@ -160,14 +160,19 @@ Europe: 7-14 business days.
     print("\n[5/5] A/B comparison: fixed vs structure chunking...")
     print("   (Same golden set, same retrieval settings, different chunking)")
 
-    # For the compare to work fairly, we need a golden set with chunk IDs
-    # that exist in BOTH KBs. In practice you'd use questions without
-    # specific chunk IDs (just expected_answer). Let's use a simpler golden:
+    # For the compare to work fairly we use expected_answer (a substring
+    # that should appear in the top retrieved chunk) rather than chunk IDs,
+    # since chunk IDs differ between the two KBs.
+    # Note: on this 2-doc toy corpus both strategies tend to tie — each
+    # document fits inside a single fixed chunk, so both retrieve the same
+    # content. On real corpora with longer sections, fixed chunking splits
+    # across headings while structure-aware keeps them intact, producing a
+    # visible precision difference (typically 10-30% on support/docs KBs).
     compare_golden = GoldenDataset.from_dicts([
-        {"question": "What is the standard refund window?"},
-        {"question": "How long does express shipping take?"},
-        {"question": "Are digital products refundable?"},
-        {"question": "What is the electronics restocking fee?"},
+        {"question": "What is the standard refund window?",   "expected_answer": "30 days"},
+        {"question": "How long does express shipping take?",   "expected_answer": "2-3"},
+        {"question": "Are digital products refundable?",       "expected_answer": "non-refundable"},
+        {"question": "What is the electronics restocking fee?", "expected_answer": "15%"},
     ])
 
     comparison = Evaluator.compare(
@@ -191,8 +196,9 @@ Europe: 7-14 business days.
     print("  • Run this after every change to catch regressions early")
     print("─" * 60)
     print("\nCLI equivalent:")
-    print(f"  ragforge eval run my-kb {golden_path} --mode hybrid -k 3")
-    print(f"  ragforge eval compare kb-fixed kb-structure {golden_path}")
+    print("  ragforge eval run my-kb golden.json --mode hybrid -k 3")
+    print("  ragforge eval compare kb-fixed kb-structure golden.json")
+    print("  # (replace golden.json with the path you saved your golden dataset to)")
     print("\nAPI equivalent:")
     print("  POST /evaluate {knowledge: 'my-kb', golden_dataset: [...], metrics: [...]}")
 

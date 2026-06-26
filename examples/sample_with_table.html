@@ -1,0 +1,38 @@
+<html>
+<body>
+<h1>Q3 2025 Revenue Report</h1>
+<p>This report summarizes revenue across product lines for Q3 2025.
+Growth was driven primarily by the Enterprise tier.</p>
+
+<h2>Revenue by Product</h2>
+<table>
+  <thead>
+    <tr><th>Product</th><th>Q2 Revenue</th><th>Q3 Revenue</th><th>Growth</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Starter</td><td>$1.2M</td><td>$1.4M</td><td>+16%</td></tr>
+    <tr><td>Pro</td><td>$4.8M</td><td>$5.1M</td><td>+6%</td></tr>
+    <tr><td>Enterprise</td><td>$12.0M</td><td>$15.3M</td><td>+28%</td></tr>
+    <tr><td>Total</td><td>$18.0M</td><td>$21.8M</td><td>+21%</td></tr>
+  </tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+<ul>
+  <li>Enterprise grew 28% QoQ, driven by 3 new Fortune 500 contracts</li>
+  <li>Pro tier showing signs of saturation — consider pricing review</li>
+  <li>Starter tier healthy but small — focus on conversion to Pro</li>
+</ul>
+
+<h2>Technical Appendix</h2>
+<pre><code>
+# Revenue calculation methodology
+def calculate_growth(q2: float, q3: float) -> float:
+    return (q3 - q2) / q2 * 100
+
+# Applied per-product with currency normalization
+for product in products:
+    product.growth = calculate_growth(product.q2_revenue, product.q3_revenue)
+</code></pre>
+</body>
+</html>

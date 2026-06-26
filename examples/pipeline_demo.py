@@ -107,16 +107,18 @@ using your order number (format: ORD-XXXXXXX).
 
 ## Flagship Products
 
-### RAGForge Pro (SKU-RF-PRO-2024)
+### RAGForge Pro
 
+SKU: SKU-RF-PRO-2024
 Enterprise-grade RAG platform with priority support.
 - Price: $299/month
 - Includes: unlimited knowledge bases, custom embeddings, SLA
 
-### RAGForge Starter (SKU-RF-START-2024)
+### RAGForge Starter
 
+SKU: SKU-RF-START-2024
 For individual developers and small teams.
-- Price: $49/month  
+- Price: $49/month
 - Includes: 5 knowledge bases, community support
 
 ### RAGForge Open Source
@@ -127,9 +129,9 @@ Free and open source. Self-hosted, community-driven.
 
 ## Add-ons
 
-- **GPU Acceleration Pack** (SKU-GPU-ACC): $99/month
-- **Custom Model Training** (SKU-TRAIN-01): Starting at $500
-- **Dedicated Support** (SKU-SUP-DED): $199/month
+- **GPU Acceleration Pack**: $99/month
+- **Custom Model Training**: Starting at $500
+- **Dedicated Support**: $199/month
 """)
 
     print(f"   Created 3 documents in {docs_dir}")

@@ -20,8 +20,13 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import sys
-sys.path.insert(0, ".")
+
+# Allow running from repo root or from within examples/
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 from ragforge.core.models import Chunk
 from ragforge.evaluation.golden import GoldenDataset, GoldenItem
@@ -32,7 +37,7 @@ from ragforge.migration.gate import run_decision_gate, identify_hot_set, GateDec
 # ─── Mock Embedders (no downloads, works offline) ──────────────────────────────
 
 class CurrentEmbedder(Embedder):
-    """Simulates the current (old) embedding model. Decent but not great."""
+    """Simulates the current (old) model. Decent but noisy — topics overlap."""
 
     @property
     def name(self) -> str:
@@ -40,24 +45,36 @@ class CurrentEmbedder(Embedder):
 
     @property
     def dimension(self) -> int:
-        return 4
+        return 8
 
     def embed(self, text: str) -> list[float]:
         t = text.lower()
-        if "refund" in t:
-            return [0.85, 0.1, 0.0, 0.05]
+        # Noisy embeddings — topics leak into each other
+        if "refund" in t and "30 day" in t:
+            return [0.8, 0.15, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0]
+        elif "refund" in t:
+            return [0.6, 0.2, 0.1, 0.05, 0.05, 0.0, 0.0, 0.0]
+        elif "shipping" in t and "express" in t:
+            return [0.1, 0.7, 0.1, 0.05, 0.05, 0.0, 0.0, 0.0]
         elif "shipping" in t:
-            return [0.1, 0.85, 0.0, 0.05]
-        elif "pricing" in t or "cost" in t:
-            return [0.1, 0.1, 0.8, 0.0]
-        return [0.3, 0.3, 0.2, 0.2]
+            return [0.15, 0.6, 0.15, 0.05, 0.05, 0.0, 0.0, 0.0]
+        elif "pricing" in t or "plan" in t or "$" in t:
+            return [0.1, 0.1, 0.6, 0.1, 0.05, 0.05, 0.0, 0.0]
+        elif "cost" in t or "how much" in t:
+            # Query about cost maps poorly — confuses with shipping/other topics
+            return [0.15, 0.25, 0.3, 0.15, 0.1, 0.05, 0.0, 0.0]
+        elif "support" in t or "contact" in t:
+            return [0.1, 0.1, 0.1, 0.5, 0.1, 0.1, 0.0, 0.0]
+        elif "api" in t or "endpoint" in t:
+            return [0.05, 0.05, 0.1, 0.1, 0.5, 0.1, 0.05, 0.05]
+        return [0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.05, 0.05]
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         return [self.embed(t) for t in texts]
 
 
 class BetterEmbedder(Embedder):
-    """Simulates a better (new) model. Stronger separation between topics."""
+    """Simulates a better (new) model. Cleaner separation between topics."""
 
     @property
     def name(self) -> str:
@@ -65,24 +82,29 @@ class BetterEmbedder(Embedder):
 
     @property
     def dimension(self) -> int:
-        return 4
+        return 8
 
     def embed(self, text: str) -> list[float]:
         t = text.lower()
+        # Clean, well-separated embeddings — also understands cost/how-much as pricing
         if "refund" in t:
-            return [1.0, 0.0, 0.0, 0.0]
+            return [0.95, 0.0, 0.0, 0.0, 0.05, 0.0, 0.0, 0.0]
         elif "shipping" in t:
-            return [0.0, 1.0, 0.0, 0.0]
-        elif "pricing" in t or "cost" in t:
-            return [0.0, 0.0, 1.0, 0.0]
-        return [0.0, 0.0, 0.0, 1.0]
+            return [0.0, 0.95, 0.0, 0.0, 0.0, 0.05, 0.0, 0.0]
+        elif "pricing" in t or "plan" in t or "$" in t or "cost" in t or "how much" in t:
+            return [0.0, 0.0, 0.95, 0.0, 0.0, 0.0, 0.05, 0.0]
+        elif "support" in t or "contact" in t:
+            return [0.0, 0.0, 0.0, 0.95, 0.0, 0.0, 0.0, 0.05]
+        elif "api" in t or "endpoint" in t:
+            return [0.0, 0.0, 0.0, 0.0, 0.95, 0.0, 0.05, 0.0]
+        return [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2]
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         return [self.embed(t) for t in texts]
 
 
 class WorseEmbedder(Embedder):
-    """Simulates a worse model. Everything maps to similar vectors."""
+    """Simulates a worse model. Everything maps to near-identical vectors."""
 
     @property
     def name(self) -> str:
@@ -90,10 +112,13 @@ class WorseEmbedder(Embedder):
 
     @property
     def dimension(self) -> int:
-        return 4
+        return 8
 
     def embed(self, text: str) -> list[float]:
-        return [0.5, 0.5, 0.5, 0.5]  # can't distinguish anything
+        # Barely distinguishable — retrieval is nearly random
+        import hashlib
+        h = int(hashlib.md5(text.encode()).hexdigest()[:4], 16) / 0xFFFF
+        return [0.35 + h * 0.01, 0.35 - h * 0.01, 0.12, 0.12, 0.03, 0.02, 0.005, 0.005]
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         return [self.embed(t) for t in texts]
@@ -109,6 +134,15 @@ CHUNKS = [
     Chunk(text="Our pricing starts at $9/month for the starter plan.", doc_id="d3", index=0, id="price-1"),
     Chunk(text="Enterprise pricing is custom — contact sales for a quote.", doc_id="d3", index=1, id="price-2"),
     Chunk(text="Contact our support team at help@example.com for assistance.", doc_id="d4", index=0, id="other-1"),
+    # Distractors — make retrieval harder
+    Chunk(text="Our API endpoint documentation is at /docs on the server.", doc_id="d5", index=0, id="distract-1"),
+    Chunk(text="The API rate limit is 1000 requests per minute for enterprise accounts.", doc_id="d5", index=1, id="distract-2"),
+    Chunk(text="We use AES-256 encryption for all data at rest.", doc_id="d6", index=0, id="distract-3"),
+    Chunk(text="Multi-factor authentication is required for all administrator accounts.", doc_id="d6", index=1, id="distract-4"),
+    Chunk(text="Our uptime SLA guarantees 99.9% availability.", doc_id="d7", index=0, id="distract-5"),
+    Chunk(text="Data backups are taken every 6 hours and retained for 30 days.", doc_id="d7", index=1, id="distract-6"),
+    Chunk(text="We support integration with Slack, Teams, and custom webhooks.", doc_id="d8", index=0, id="distract-7"),
+    Chunk(text="The onboarding process takes about 15 minutes for most users.", doc_id="d8", index=1, id="distract-8"),
 ]
 
 GOLDEN = GoldenDataset(items=[
@@ -137,7 +171,7 @@ def main() -> int:
 
     # ─── Scenario 1: Better model → GO ─────────────────────────────────────
     print("─" * 60)
-    print("  SCENARIO 1: Upgrade to a better model")
+    print("  SCENARIO 1: Better model improves recall → GO (safe to migrate)")
     print("─" * 60)
 
     decision = run_decision_gate(
@@ -148,6 +182,7 @@ def main() -> int:
         primary_metric="recall_at_k",
         threshold_margin=0.0,
         top_k=3,
+        hot_set_only=False,  # Use full corpus so distractors make it harder
     )
     decision.print_table()
 
@@ -169,6 +204,7 @@ def main() -> int:
         primary_metric="recall_at_k",
         threshold_margin=0.0,
         top_k=3,
+        hot_set_only=False,
     )
     decision2.print_table()
 
@@ -177,19 +213,20 @@ def main() -> int:
         print("  → Saved the cost of re-embedding the entire corpus.")
     print()
 
-    # ─── Scenario 3: Margin allows slight regression ────────────────────────
+    # ─── Scenario 3: Margin allows regression ──────────────────────────────
     print("─" * 60)
-    print("  SCENARIO 3: New model is slightly worse, but within allowed margin")
+    print("  SCENARIO 3: Regression within margin → GO (margin covers the drop)")
     print("─" * 60)
 
     decision3 = run_decision_gate(
         chunks=CHUNKS,
         old_embedder=BetterEmbedder(),
-        new_embedder=CurrentEmbedder(),  # slightly worse
+        new_embedder=CurrentEmbedder(),  # worse on cost queries
         golden=GOLDEN,
         primary_metric="recall_at_k",
-        threshold_margin=0.3,  # allow up to 30% regression
+        threshold_margin=0.4,  # allow up to 40% regression
         top_k=3,
+        hot_set_only=False,
     )
     decision3.print_table()
 

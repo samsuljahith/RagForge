@@ -34,8 +34,12 @@ from ragforge.pipeline.generation import LLMProvider, build_grounded_prompt
 
 class MockLLM(LLMProvider):
     """
-    A mock LLM that parses the prompt and returns a reasonable-looking answer.
-    Used so this demo runs without any API keys or external services.
+    A mock LLM that returns answers keyed to the QUESTION, not context keywords.
+
+    This ensures the refusal behavior (Q4: "meaning of life") actually fires
+    even if retrieved context chunks happen to contain words like "refund" or "days".
+    In a real LLM, the model reads the whole prompt; here we simulate that by
+    extracting the question from the prompt and routing on it.
     """
 
     @property
@@ -43,27 +47,38 @@ class MockLLM(LLMProvider):
         return "mock-demo-llm"
 
     def generate(self, prompt: str, **opts) -> str:
-        # Look for key phrases in the context to craft a realistic mock answer
-        if "30 days" in prompt and "refund" in prompt.lower():
+        # Extract the question from the grounded prompt (the template uses "QUESTION:")
+        question = ""
+        for line in prompt.splitlines():
+            if line.upper().startswith("QUESTION:"):
+                question = line.split(":", 1)[1].strip().lower()
+                break
+
+        if "refund" in question or "return" in question:
             return (
                 "Based on the provided context, the refund window is 30 days from "
                 "the original purchase date. Items must be returned in their original "
                 "condition with all packaging intact [Source 1]. Electronics have a "
                 "shorter 14-day window with a 15% restocking fee [Source 2]."
             )
-        elif "shipping" in prompt.lower():
+        elif "shipping" in question or "express" in question or "delivery" in question:
             return (
                 "Standard shipping takes 5-7 business days and is free. Express "
                 "shipping (2-3 days) costs $9.99, and overnight is $24.99 [Source 1]."
             )
-        elif "SKU" in prompt or "product" in prompt.lower():
+        elif "pro plan" in question or "sku" in question or "product" in question:
             return (
                 "RAGForge Pro (SKU-RF-PRO-2024) is the enterprise-grade plan at "
                 "$299/month, including unlimited knowledge bases and custom "
                 "embeddings [Source 1]."
             )
         else:
-            return "I don't have enough information to answer that."
+            # Off-topic question — refuse (the correct behavior)
+            return (
+                "I cannot answer this question based on the available context. "
+                "The retrieved documents do not contain information relevant to "
+                "this question. (No hallucination — refusing when evidence is lacking.)"
+            )
 
 
 # ---------------------------------------------------------------------------

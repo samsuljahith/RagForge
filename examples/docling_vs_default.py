@@ -16,9 +16,10 @@ Requirements:
 Usage:
     python examples/docling_vs_default.py
 
-    # Or via CLI:
+    # Or via CLI (with a local HTML file that has tables):
     ragforge parse examples/sample_with_table.html --parser docling
     ragforge chunk examples/sample_with_table.html --parser docling --strategy docling --show-text
+    # The demo creates examples/sample_with_table.html on disk — run it first.
 """
 
 from __future__ import annotations
@@ -140,9 +141,13 @@ def run_docling(html_path: Path) -> None:
 
 
 def main() -> int:
-    # Write sample HTML to a temp file
+    # Write sample HTML to a temp file for the demo run, and also keep a copy
+    # in examples/ so the CLI snippets in the docstring work after one run.
     tmp = Path(tempfile.mkdtemp()) / "revenue_report.html"
     tmp.write_text(SAMPLE_HTML)
+    examples_copy = Path(__file__).parent / "sample_with_table.html"
+    if not examples_copy.exists():
+        examples_copy.write_text(SAMPLE_HTML)
     print(f"Sample document: {tmp}\n")
 
     # Always run the default backend (no extra deps needed)
@@ -176,7 +181,7 @@ def main() -> int:
 │ Zero dependencies   │ Requires: pip install ragforge[docling]             │
 │ Fast, lightweight   │ Slower (layout analysis, OCR)                      │
 │ Good for txt/md     │ Best for PDF, DOCX, PPTX, images                  │
-│ May split tables    │ Keeps tables/code blocks intact                    │
+│ Loses table layout  │ Keeps tables/code blocks intact                    │
 │ No page metadata    │ Rich metadata (page, section hierarchy)            │
 │ No OCR             │ OCR for scanned documents                           │
 └─────────────────────┴────────────────────────────────────────────────────┘

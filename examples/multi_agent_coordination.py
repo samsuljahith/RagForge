@@ -27,8 +27,12 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import sys
-sys.path.insert(0, ".")
+
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 from ragforge.coordination.blackboard import InMemoryBlackboard
 from ragforge.coordination.agent import Agent, AgentResult, Orchestrator
@@ -67,7 +71,7 @@ FINAL_ANSWER = (
     "cost advantage: in direct messaging, every agent handoff re-sends the full conversation "
     "to the LLM (growing context = growing cost). With the blackboard, each agent reads only "
     "the specific entries it needs. The orchestrator is a simple deterministic loop that "
-    "uses zero tokens. Typical savings: 40-70% fewer tokens on multi-step tasks."
+    "uses zero tokens. Savings depend on the task — see the benchmark output below."
 )
 
 
@@ -350,10 +354,7 @@ def main() -> int:
         max_steps=10,
     )
 
-    # Patch: seed the board in the benchmark run
-    original_run = run_benchmark.__wrapped__ if hasattr(run_benchmark, '__wrapped__') else None
-
-    # We need to seed the benchmark board — let's monkey-patch the agents to self-seed
+    # We need to seed the benchmark board — add a seeder agent
     def seeder_trigger(b):
         return not b.has_key("question")
 
