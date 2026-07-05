@@ -82,6 +82,15 @@ ragforge/
 └── cli.py          # Command-line interface
 ```
 
+## AI-Assisted Development
+
+`AGENTS.md` at the repo root has the ground rules for AI coding agents working on RAGForge (honesty
+over hype, cross-surface consistency, required tests). Cursor users also get project-specific helpers:
+
+- `.cursor/agents/reviewer.md` — a reviewer subagent that checks changes for fabricated numbers,
+  doc/code mismatches, and scope creep
+- `.cursor/commands/add-feature.md`, `fix-bug.md`, `run-benchmark.md` — slash commands for common tasks
+
 ## Pull Request Guidelines
 
 - One feature per PR
