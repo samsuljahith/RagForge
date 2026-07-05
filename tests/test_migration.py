@@ -1,7 +1,7 @@
 """
 Tests for the migration module.
 
-Covers the actual promise on the website's "Don't migrate blind" section:
+Covers the actual promise in the docs site's "Don't migrate blind" section:
   - The cutover is gated on real recall@k/MRR/hit_rate (old model vs new),
     not a no-op check that always swaps.
   - The hot set (chunks the golden questions reference) is re-embedded and
