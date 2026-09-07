@@ -7,9 +7,10 @@ Runs two real sentence-transformers models against the SciFact dataset
 migration decision gate to produce a GO/NO_GO verdict with credible
 recall@k / MRR numbers.
 
-Models compared:
-  A (baseline): sentence-transformers/all-MiniLM-L6-v2
-  B (candidate): BAAI/bge-small-en-v1.5
+Models compared: see MODEL_A / MODEL_B below (a docstring can't read them —
+it's parsed before they're assigned — so naming them here a second time is
+exactly how this comment drifted from the code once already; the values
+are also printed at runtime when the script runs).
 
 Requirements:
   pip install datasets sentence-transformers numpy
